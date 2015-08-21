@@ -24,6 +24,9 @@ typedef unsigned long uintreg_t;
 #define FALSE	0
 #endif
 
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)     __builtin_expect(!!(x), 0)
+
 #define FOR_CIRC_BUFFER(next, size, var) \
 	for (int _var = 0, var = (next); _var < (size); _var++, var = (var + 1) % (size))
 
