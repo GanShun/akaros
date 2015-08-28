@@ -355,92 +355,61 @@ static void decref_nodes(struct sched_pnode *n)
  * to maintain our list of provision and allocated or not allocated cores.
  * TODO ? : We also have to check if the core n is provisioned by an other proc.
  * In this case, we should try to reprovision an other core to this proc. */
-static struct sched_pcore *alloc_core(struct proc *p, struct sched_pcore *c)
+void provalloc_track_alloc(struct proc *p, struct sched_pcore *c)
 {
 	struct proc *owner = c->alloc_proc;
-
-	if (c == NULL || owner == p)
-		return NULL;
-
 	incref_nodes(c->spn);
 	if (c->prov_proc == p) {
-		STAILQ_REMOVE(&(p->ksched_data.prov_not_alloc_me), c, sched_pcore, prov_next);
-		STAILQ_INSERT_HEAD(&(p->ksched_data.prov_alloc_me), c, prov_next);
-		if (owner != NULL) {
-			/* TODO: Trigger something here to actually do the allocation in
-			 * the kernel */
-			STAILQ_REMOVE(&(owner->ksched_data.alloc_me), c, sched_pcore, alloc_next);
-		}
+		TAILQ_REMOVE(&p->ksched_data.prov_not_alloc_me, c, prov_next);
+		TAILQ_INSERT_HEAD(&p->ksched_data.prov_alloc_me, c, prov_next);
 	}
+	TAILQ_INSERT_TAIL(&p->ksched_data.alloc_me, c, alloc_next);
 	c->alloc_proc = p;
-	return c;
 }
 
 /* Free a specific core. */
-static int free_core(struct proc *p, int core_id)
+void provalloc_free_core(struct proc *p, uint32_t core_id)
 {
 	struct sched_pcore *c = &core_list[core_id];
 
-	if (c == NULL || c->alloc_proc != p || core_id > num_cores)
-		return -1;
-
 	c->alloc_proc = NULL;
-	STAILQ_REMOVE(&(p->ksched_data.alloc_me), c, sched_pcore, alloc_next);
+	TAILQ_REMOVE(&(p->ksched_data.alloc_me), c, alloc_next);
 	if (c->prov_proc == p){
-		STAILQ_REMOVE(&(p->ksched_data.prov_alloc_me),
-					  c, sched_pcore, prov_next);
-		STAILQ_INSERT_HEAD(&(p->ksched_data.prov_not_alloc_me), c, prov_next);
+		TAILQ_REMOVE(&p->ksched_data.prov_alloc_me, c, prov_next);
+		TAILQ_INSERT_HEAD(&(p->ksched_data.prov_not_alloc_me), c, prov_next);
 	}
 	decref_nodes(c->spn);
-	return 0;
 }
 
-/* Allocates the *best* node from our node structure. *Best* could have
- * different interpretations, but currently it means to allocate nodes as
- * tightly packed as possible.  All ancestors of the chosen node will be
- * increfed in the process, effectively allocating them as well. */
-static struct sched_pcore *alloc_best_core(struct proc *p)
-{
-	return alloc_core(p, find_best_core(p));
-}
-
-static struct sched_pcore *alloc_first_core(struct proc *p)
-{
-	return alloc_core(p, find_first_core(p));
-}
 
 /* Allocate an amount of cores for proc p. Those cores are elected according to
  * the algorithm in find_best_core. */
-void alloc_core_any(struct proc *p, int amt)
+struct sched_pcore *provalloc_alloc_core(struct proc *p)
 {
-	if (amt <= num_cores) {
-		for (int i = 0; i < amt; i++) {
-			struct sched_pcore *c = NULL;
-			if (STAILQ_FIRST(&(p->ksched_data.alloc_me)) == NULL)
-				c = alloc_first_core(p);
-			else
-				c = alloc_best_core(p);
-			STAILQ_INSERT_TAIL(&p->ksched_data.alloc_me, c, alloc_next);
-		}
-	}
+	struct sched_pcore *c = NULL;
+	if (TAILQ_FIRST(&(p->ksched_data.alloc_me)) == NULL)
+		c = find_first_core(p);
+	else
+		c = find_best_core(p);
+	return c;
 }
 
-int free_core_specific(struct proc* p, int core_id)
-{
-	return free_core(p, core_id);
-}
+//int free_core_specific(struct proc* p, int core_id)
+//{
+//	return free_core(p, core_id);
+//}
 
-/* Allocate a specific core to the proc p. */
-void alloc_core_specific(struct proc *p, int core_id)
-{
-	if (core_id <= num_cores) {
-		struct sched_pcore *c = &core_list[core_id];
-		if (c->prov_proc == p) {
-			c = alloc_core(p, c);
-			STAILQ_INSERT_TAIL(&p->ksched_data.alloc_me, c, alloc_next);
-		}
-	}
-}
+///* Allocate a specific core to the proc p. */
+//void alloc_core_specific(struct proc *p, int core_id)
+//{
+//	if (core_id <= num_cores) {
+//		struct sched_pcore *c = &core_list[core_id];
+//		if (c->prov_proc == p) {
+//			c = alloc_core(p, c);
+//			TAILQ_INSERT_TAIL(&p->ksched_data.alloc_me, c, alloc_next);
+//		}
+//	}
+//}
 
 /* Remove the provision made by a proc for a core. */
 static void deprovision_core(struct sched_pcore *c)
