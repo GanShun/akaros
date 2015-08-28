@@ -30,13 +30,13 @@
  * SUCH DAMAGE.
  */
 
+#include <provalloc.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <kmalloc.h>
 #include <sys/queue.h>
 #include <arch/topology.h>
-#include "corealloc.h"
 
 #define num_cores           (cpu_topology_info.num_cores)
 #define num_cores_power2    (cpu_topology_info.num_cores_power2)
@@ -177,7 +177,7 @@ static int calc_core_distance(struct sched_pcore_tailq cl,
 {
 	int d = 0;
 	struct sched_pcore *temp = NULL;
-	STAILQ_FOREACH(temp, &cl, alloc_next) {
+	TAILQ_FOREACH(temp, &cl, alloc_next) {
 		d += core_distance[c->spc_info->core_id][temp->spc_info->core_id];
 	}
 	return d;
@@ -195,7 +195,7 @@ static struct sched_pcore *find_best_core_provision(struct proc *p)
 	struct sched_pcore_tailq core_alloc = p->ksched_data.alloc_me;
 	struct sched_pcore *bestc = NULL;
 	struct sched_pcore *c = NULL;
-	STAILQ_FOREACH(c, &core_prov_available, prov_next) {
+	TAILQ_FOREACH(c, &core_prov_available, prov_next) {
 		int sibd = calc_core_distance(core_alloc, c);
 		if (bestd == 0 || sibd < bestd) {
 			bestd = sibd;
@@ -230,7 +230,7 @@ static struct sched_pcore *find_best_core(struct proc *p)
 	struct sched_pcore_tailq core_owned = p->ksched_data.alloc_me;
 
 	for (int k = CPU; k <= MACHINE; k++) {
-		STAILQ_FOREACH(c, &core_owned, alloc_next) {
+		TAILQ_FOREACH(c, &core_owned, alloc_next) {
 			int nb_cores = num_descendants[k][CORE];
 			int type_id = get_node_id(c->spc_info, k);
 			for (int i = 0; i < nb_cores; i++) {
@@ -266,7 +266,7 @@ static struct sched_pcore *find_best_core(struct proc *p)
 /* Returns the first provision core available. If none is found, return NULL */
 static struct sched_pcore *find_first_provision_core(struct proc *p)
 {
-	return STAILQ_FIRST(&(p->ksched_data.prov_not_alloc_me));
+	return TAILQ_FIRST(&(p->ksched_data.prov_not_alloc_me));
 }
 
 /* Returns the best first core to allocate for a proc which owns no core.
@@ -448,26 +448,25 @@ static void deprovision_core(struct sched_pcore *c)
 	struct proc *p = c-> prov_proc;
 	c->prov_proc = NULL;
 	if (c->alloc_proc == p)
-		STAILQ_REMOVE(&(p->ksched_data.prov_alloc_me), c, sched_pcore, prov_next);
+		TAILQ_REMOVE(&p->ksched_data.prov_alloc_me, c, prov_next);
 	else
-		STAILQ_REMOVE(&(p->ksched_data.prov_alloc_me),
-					  c, sched_pcore, prov_next);
+		TAILQ_REMOVE(&p->ksched_data.prov_alloc_me, c, prov_next);
 }
 
-/* Provision a given core to the proc p. */
-void provision_core(struct proc *p, int core_id)
-{
-	if (core_id <= num_cores) {
-		struct sched_pcore *c = &core_list[core_id];
-		if (c->prov_proc != NULL)
-			deprovision_core(c);
-		c->prov_proc = p;
-		if (c->alloc_proc == p)
-			STAILQ_INSERT_TAIL(&p->ksched_data.prov_alloc_me, c, prov_next);
-		else
-			STAILQ_INSERT_TAIL(&p->ksched_data.prov_not_alloc_me, c, prov_next);
-	}
-}
+///* Provision a given core to the proc p. */
+//void __provision_core(struct proc *p, int core_id)
+//{
+//	if (core_id <= num_cores) {
+//		struct sched_pcore *c = &core_list[core_id];
+//		if (c->prov_proc != NULL)
+//			deprovision_core(c);
+//		c->prov_proc = p;
+//		if (c->alloc_proc == p)
+//			TAILQ_INSERT_TAIL(&p->ksched_data.prov_alloc_me, c, prov_next);
+//		else
+//			TAILQ_INSERT_TAIL(&p->ksched_data.prov_not_alloc_me, c, prov_next);
+//	}
+//}
 
 void print_node(struct sched_pnode *n)
 {
@@ -504,46 +503,35 @@ void test_structure()
 	struct sched_pcore *c = NULL;
 	struct proc *p1 = kmalloc(sizeof(struct proc), 0);
 	struct proc *p2 = kmalloc(sizeof(struct proc), 0);
-	STAILQ_INIT(&p1->ksched_data.alloc_me);
-	STAILQ_INIT(&p2->ksched_data.alloc_me);
-	STAILQ_INIT(&p1->ksched_data.prov_alloc_me);
-	STAILQ_INIT(&p2->ksched_data.prov_alloc_me);
-	STAILQ_INIT(&p1->ksched_data.prov_not_alloc_me);
-	STAILQ_INIT(&p2->ksched_data.prov_not_alloc_me);
+	TAILQ_INIT(&p1->ksched_data.alloc_me);
+	TAILQ_INIT(&p2->ksched_data.alloc_me);
+	TAILQ_INIT(&p1->ksched_data.prov_alloc_me);
+	TAILQ_INIT(&p2->ksched_data.prov_alloc_me);
+	TAILQ_INIT(&p1->ksched_data.prov_not_alloc_me);
+	TAILQ_INIT(&p2->ksched_data.prov_not_alloc_me);
 
-	provision_core(p1, 7);
-	alloc_core_any(p1, 3);
-	provision_core(p2, 3);
-	alloc_core_specific(p2, 3);
-	provision_core(p2, 4);
-	alloc_core_any(p2, 1);
-	provision_core(p1, 4);
-	alloc_core_any(p1, 1);
-	alloc_core_any(p1, 1);
-	free_core_specific(p1, 7);
-	provision_core(p2, 5);
 	printk("Cores allocated:\n");
-	STAILQ_FOREACH(c, &(p1->ksched_data.alloc_me), alloc_next) {
+	TAILQ_FOREACH(c, &(p1->ksched_data.alloc_me), alloc_next) {
 		printk("proc%d :core %d\n",1, c->spc_info->core_id);
 	}
 	printk("\n");
-	STAILQ_FOREACH(c, &(p2->ksched_data.alloc_me), alloc_next) {
+	TAILQ_FOREACH(c, &(p2->ksched_data.alloc_me), alloc_next) {
 		printk("proc%d :core %d\n",2, c->spc_info->core_id);
 	}
 	printk("\nCores prov_allocated:\n");
-	STAILQ_FOREACH(c, &(p1->ksched_data.prov_alloc_me), prov_next) {
+	TAILQ_FOREACH(c, &(p1->ksched_data.prov_alloc_me), prov_next) {
 		printk("proc%d :core %d\n",1, c->spc_info->core_id);
 	}
 	printk("\n");
-	STAILQ_FOREACH(c, &(p2->ksched_data.prov_alloc_me), prov_next) {
+	TAILQ_FOREACH(c, &(p2->ksched_data.prov_alloc_me), prov_next) {
 		printk("proc%d :core %d\n",2, c->spc_info->core_id);
 	}
 	printk("\nCores prov_not_allocated:\n");
-	STAILQ_FOREACH(c, &(p1->ksched_data.prov_not_alloc_me), prov_next) {
+	TAILQ_FOREACH(c, &(p1->ksched_data.prov_not_alloc_me), prov_next) {
 		printk("proc%d :core %d\n",1, c->spc_info->core_id);
 	}
 	printk("\n");
-	STAILQ_FOREACH(c, &(p2->ksched_data.prov_not_alloc_me), prov_next) {
+	TAILQ_FOREACH(c, &(p2->ksched_data.prov_not_alloc_me), prov_next) {
 		printk("proc%d :core %d\n",2, c->spc_info->core_id);
 	}
 	printk("\n");

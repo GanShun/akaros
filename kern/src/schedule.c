@@ -5,6 +5,7 @@
  * Scheduling and dispatching. */
 
 #include <schedule.h>
+#include <provalloc.h>
 #include <process.h>
 #include <monitor.h>
 #include <stdio.h>
