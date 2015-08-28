@@ -669,7 +669,7 @@ static void __core_request(struct proc *p, uint32_t amt_needed)
 		if (nr_to_grant == amt_needed)
 			break;
 		/* picking the next victim (first on the not_alloc list) */
-		spc_i = TAILQ_FIRST(&p->ksched_data.prov_not_alloc_me);
+		spc_i = provalloc_alloc_core(p);
 		/* someone else has this proc's pcore, so we need to try to preempt.
 		 * after this block, the core will be tracked dealloc'd and on the idle
 		 * list (regardless of whether we had to preempt or not) */
@@ -746,9 +746,8 @@ static void __core_request(struct proc *p, uint32_t amt_needed)
 		__prov_track_alloc(p, spc2pcoreid(spc_i));
 	}
 	/* Try to get cores from the idle list that aren't prov to me (FCFS) */
-	TAILQ_FOREACH_SAFE(spc_i, &idlecores, alloc_next, temp) {
-		if (nr_to_grant == amt_needed)
-			break;
+	while (nr_to_grant != amt_needed){
+		spc_i = provalloc_alloc_core(p);
 		TAILQ_REMOVE(&idlecores, spc_i, alloc_next);
 		corelist[nr_to_grant] = spc2pcoreid(spc_i);
 		nr_to_grant++;
