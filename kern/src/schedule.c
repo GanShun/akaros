@@ -809,31 +809,15 @@ static void __prov_track_alloc(struct proc *p, uint32_t pcoreid)
 	assert(pcoreid < num_cores);	/* catch bugs */
 	spc = pcoreid2spc(pcoreid);
 	assert(spc->alloc_proc != p);	/* corruption or double-alloc */
-	spc->alloc_proc = p;
-	/* if the pcore is prov to them and now allocated, move lists */
-	if (spc->prov_proc == p) {
-		TAILQ_REMOVE(&p->ksched_data.prov_not_alloc_me, spc, prov_next);
-		TAILQ_INSERT_TAIL(&p->ksched_data.prov_alloc_me, spc, prov_next);
-	}
+	provalloc_track_alloc(p, spc);
 }
 
 /* Helper, makes sure the prov/alloc structures track the pcore properly when it
  * is deallocated from p. */
 static void __prov_track_dealloc(struct proc *p, uint32_t pcoreid)
 {
-	struct sched_pcore *spc;
 	assert(pcoreid < num_cores);	/* catch bugs */
-	spc = pcoreid2spc(pcoreid);
-	spc->alloc_proc = 0;
-	/* if the pcore is prov to them and now deallocated, move lists */
-	if (spc->prov_proc == p) {
-		TAILQ_REMOVE(&p->ksched_data.prov_alloc_me, spc, prov_next);
-		/* this is the victim list, which can be sorted so that we pick the
-		 * right victim (sort by alloc_proc reverse priority, etc).  In this
-		 * case, the core isn't alloc'd by anyone, so it should be the first
-		 * victim. */
-		TAILQ_INSERT_HEAD(&p->ksched_data.prov_not_alloc_me, spc, prov_next);
-	}
+	provalloc_free_core(p, pcoreid);
 }
 
 /* Bulk interface for __prov_track_dealloc */
