@@ -10,8 +10,9 @@
 
 #include <sys/queue.h>
 #include <arch/topology.h>
-#include <process.h>
 
+struct proc;	/* process.h includes us, but we need pointers now */
+struct sched_pnode;
 enum pnode_type { CORE, CPU, SOCKET, NUMA, MACHINE, NUM_NODE_TYPES};
 static char pnode_label[5][8] = { "CORE", "CPU", "SOCKET", "NUMA", "MACHINE" };
 

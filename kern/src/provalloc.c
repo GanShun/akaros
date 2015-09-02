@@ -37,7 +37,7 @@
 #include <kmalloc.h>
 #include <sys/queue.h>
 #include <arch/topology.h>
-
+#include <process.h>
 #define num_cores           (cpu_topology_info.num_cores)
 #define num_cores_power2    (cpu_topology_info.num_cores_power2)
 #define num_cpus            (cpu_topology_info.num_cpus)
