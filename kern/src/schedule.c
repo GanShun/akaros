@@ -664,7 +664,7 @@ static void __core_request(struct proc *p, uint32_t amt_needed)
 	/* get all available cores from their prov_not_alloc list.  the list might
 	 * change when we unlock (new cores added to it, or the entire list emptied,
 	 * but no core allocations will happen (we hold the poke)). */
-	while (!TAILQ_EMPTY(&p->ksched_data.prov_not_alloc_me)) {
+	while (!TAILQ_EMPTY(&p->ksched_data.corealloc_data.prov_not_alloc_me)) {
 		if (nr_to_grant == amt_needed)
 			break;
 		/* picking the next victim (first on the not_alloc list) */
@@ -853,20 +853,22 @@ int provision_core(struct proc *p, uint32_t pcoreid)
 		/* the list the spc is on depends on whether it is alloced to the
 		 * prov_proc or not */
 		prov_list = (spc->alloc_proc == spc->prov_proc ?
-		             &spc->prov_proc->ksched_data.prov_alloc_me :
-		             &spc->prov_proc->ksched_data.prov_not_alloc_me);
+		             &spc->prov_proc->ksched_data.corealloc_data.prov_alloc_me :
+		             &spc->prov_proc->ksched_data.corealloc_data.
+					 prov_not_alloc_me);
 		TAILQ_REMOVE(prov_list, spc, prov_next);
 	}
 	/* Now prov it to p.  Again, the list it goes on depends on whether it is
 	 * alloced to p or not.  Callers can also send in 0 to de-provision. */
 	if (p) {
 		if (spc->alloc_proc == p) {
-			TAILQ_INSERT_TAIL(&p->ksched_data.prov_alloc_me, spc, prov_next);
+			TAILQ_INSERT_TAIL(&p->ksched_data.corealloc_data.prov_alloc_me, spc,
+							  prov_next);
 		} else {
 			/* this is be the victim list, which can be sorted so that we pick
 			 * the right victim (sort by alloc_proc reverse priority, etc). */
-			TAILQ_INSERT_TAIL(&p->ksched_data.prov_not_alloc_me, spc,
-			                  prov_next);
+			TAILQ_INSERT_TAIL(&p->ksched_data.corealloc_data.prov_not_alloc_me,
+							  spc, prov_next);
 		}
 	}
 	spc->prov_proc = p;

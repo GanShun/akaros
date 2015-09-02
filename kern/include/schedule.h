@@ -20,9 +20,7 @@ TAILQ_HEAD(proc_list, proc);		/* Declares 'struct proc_list' */
 struct sched_proc_data {
 	TAILQ_ENTRY(proc)			proc_link;			/* tailq linkage */
 	struct proc_list 			*cur_list;			/* which tailq we're on */
-	struct sched_pcore_tailq    alloc_me;
-	struct sched_pcore_tailq	prov_alloc_me;		/* prov cores alloced us */
-	struct sched_pcore_tailq	prov_not_alloc_me;	/* maybe alloc to others */
+	struct corealloc_data 		corealloc_data;
 	/* count of lists? */
 	/* other accounting info */
 };
