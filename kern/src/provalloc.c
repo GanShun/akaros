@@ -477,12 +477,37 @@ void test_structure()
 	struct sched_pcore *c = NULL;
 	struct proc *p1 = kmalloc(sizeof(struct proc), 0);
 	struct proc *p2 = kmalloc(sizeof(struct proc), 0);
-	TAILQ_INIT(&p1->ksched_data.alloc_me);
-	TAILQ_INIT(&p2->ksched_data.alloc_me);
-	TAILQ_INIT(&p1->ksched_data.prov_alloc_me);
-	TAILQ_INIT(&p2->ksched_data.prov_alloc_me);
-	TAILQ_INIT(&p1->ksched_data.prov_not_alloc_me);
-	TAILQ_INIT(&p2->ksched_data.prov_not_alloc_me);
+	TAILQ_INIT(&p1->ksched_data.corealloc_data.alloc_me);
+	TAILQ_INIT(&p2->ksched_data.corealloc_data.alloc_me);
+	TAILQ_INIT(&p1->ksched_data.corealloc_data.prov_alloc_me);
+	TAILQ_INIT(&p2->ksched_data.corealloc_data.prov_alloc_me);
+	TAILQ_INIT(&p1->ksched_data.corealloc_data.prov_not_alloc_me);
+	TAILQ_INIT(&p2->ksched_data.corealloc_data.prov_not_alloc_me);
+
+	core_list[0].alloc_proc = -1;
+
+	prov_core(p1, 7);
+	c = provalloc_alloc_core(p1);
+	provalloc_track_alloc(p1, c);
+
+	prov_core(p2, 3);
+	c = provalloc_alloc_core(p2);
+	provalloc_track_alloc(p2, c);
+
+	prov_core(p2, 4);
+	c = provalloc_alloc_core(p2);
+	provalloc_track_alloc(p2, c);
+
+	prov_core(p1, 4);
+	c = provalloc_alloc_core(p1);
+	provalloc_track_alloc(p1, c);
+
+	c = provalloc_alloc_core(p1);
+	provalloc_track_alloc(p1, c);
+
+	provalloc_free_core(p1, 7);
+	prov_core(p2, 5);
+
 
 	printk("Cores allocated:\n");
 	TAILQ_FOREACH(c, &(p1->ksched_data.corealloc_data.alloc_me), alloc_next) {
