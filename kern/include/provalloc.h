@@ -16,6 +16,23 @@ struct sched_pnode;
 enum pnode_type { CORE, CPU, SOCKET, NUMA, MACHINE, NUM_NODE_TYPES};
 static char pnode_label[5][8] = { "CORE", "CPU", "SOCKET", "NUMA", "MACHINE" };
 
+/* The ksched maintains an internal array of these: the global pcore map.  Note
+ * the prov_proc and alloc_proc are weak (internal) references, and should only
+ * be used as a ref source while the ksched has a valid kref. */
+struct sched_pcore {
+	struct sched_pnode          *spn;
+	struct core_info            *spc_info;
+	TAILQ_ENTRY(sched_pcore)	prov_next;			/* on a proc's prov list */
+	TAILQ_ENTRY(sched_pcore)	alloc_next;			/* on an alloc list (idle)*/
+	struct proc					*prov_proc;			/* who this is prov to */
+	struct proc					*alloc_proc;		/* who this is alloc to */
+};
+TAILQ_HEAD(sched_pcore_tailq, sched_pcore);
+
+struct corealloc_data {
+	struct sched_pcore_tailq    alloc_me;           /* any core alloc to us */
+	struct sched_pcore_tailq	prov_alloc_me;		/* prov cores alloced us */
+	struct sched_pcore_tailq	prov_not_alloc_me;	/* maybe alloc to others */
 };
 
 void provalloc_nodes_init();

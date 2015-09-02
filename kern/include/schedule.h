@@ -11,22 +11,10 @@
 
 #include <ros/common.h>
 #include <sys/queue.h>
+#include <provalloc.h>
 
 struct proc;	/* process.h includes us, but we need pointers now */
 TAILQ_HEAD(proc_list, proc);		/* Declares 'struct proc_list' */
-
-/* The ksched maintains an internal array of these: the global pcore map.  Note
- * the prov_proc and alloc_proc are weak (internal) references, and should only
- * be used as a ref source while the ksched has a valid kref. */
-struct sched_pcore {
-	struct sched_pnode          *spn;
-	struct core_info            *spc_info;
-	TAILQ_ENTRY(sched_pcore)	prov_next;			/* on a proc's prov list */
-	TAILQ_ENTRY(sched_pcore)	alloc_next;			/* on an alloc list (idle)*/
-	struct proc					*prov_proc;			/* who this is prov to */
-	struct proc					*alloc_proc;		/* who this is alloc to */
-};
-TAILQ_HEAD(sched_pcore_tailq, sched_pcore);
 
 /* One of these embedded in every struct proc */
 struct sched_proc_data {
