@@ -16,13 +16,6 @@ struct sched_pnode;
 enum pnode_type { CORE, CPU, SOCKET, NUMA, MACHINE, NUM_NODE_TYPES};
 static char pnode_label[5][8] = { "CORE", "CPU", "SOCKET", "NUMA", "MACHINE" };
 
-struct sched_pnode {
-	int id;
-	enum pnode_type type;
-	int refcount[NUM_NODE_TYPES];
-	struct sched_pnode *parent;
-	struct sched_pnode *children;
-	struct sched_pcore *spc_data;
 };
 
 void provalloc_nodes_init();

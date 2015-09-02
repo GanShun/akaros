@@ -35,9 +35,18 @@
 #include <stdbool.h>
 #include <string.h>
 #include <kmalloc.h>
-#include <sys/queue.h>
 #include <arch/topology.h>
 #include <process.h>
+
+struct sched_pnode {
+	int id;
+	enum pnode_type type;
+	int refcount[NUM_NODE_TYPES];
+	struct sched_pnode *parent;
+	struct sched_pnode *children;
+	struct sched_pcore *spc_data;
+};
+
 #define num_cores           (cpu_topology_info.num_cores)
 #define num_cores_power2    (cpu_topology_info.num_cores_power2)
 #define num_cpus            (cpu_topology_info.num_cpus)
