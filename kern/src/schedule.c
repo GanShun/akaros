@@ -118,6 +118,8 @@ static void __ksched_tick(struct alarm_waiter *waiter)
 void schedule_init(void)
 {
 	spin_lock(&sched_lock);
+	/* init provqlloc structures stuff */
+	provalloc_nodes_init();
 	/* init provisioning stuff */
 	all_pcores = kmalloc(sizeof(struct sched_pcore) * num_cores, 0);
 	memset(all_pcores, 0, sizeof(struct sched_pcore) * num_cores);

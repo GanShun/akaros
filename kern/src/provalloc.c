@@ -140,7 +140,7 @@ static void init_core_distances()
 
 
 /* Build our available nodes structure. */
-void nodes_init()
+void provalloc_nodes_init()
 {
 	/* Allocate a flat array of nodes. */
 	total_nodes = num_cores + num_cpus + num_sockets + num_numa;
