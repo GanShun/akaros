@@ -442,20 +442,23 @@ static void deprovision_core(struct sched_pcore *c)
 		TAILQ_REMOVE(&p->ksched_data.corealloc_data.prov_alloc_me, c, prov_next);
 }
 
-///* Provision a given core to the proc p. */
-//void __provision_core(struct proc *p, int core_id)
-//{
-//	if (core_id <= num_cores) {
-//		struct sched_pcore *c = &core_list[core_id];
-//		if (c->prov_proc != NULL)
-//			deprovision_core(c);
-//		c->prov_proc = p;
-//		if (c->alloc_proc == p)
-//			TAILQ_INSERT_TAIL(&p->ksched_data.prov_alloc_me, c, prov_next);
-//		else
-//			TAILQ_INSERT_TAIL(&p->ksched_data.prov_not_alloc_me, c, prov_next);
-//	}
-//}
+/* Provision a given core to the proc p. This function is just used for test
+ * here, we should move it to an other file dedicated to provisioning stuffs */
+static void prov_core(struct proc *p, int core_id)
+{
+	if (core_id <= num_cores) {
+		struct sched_pcore *c = &core_list[core_id];
+		if (c->prov_proc != NULL)
+			deprovision_core(c);
+		c->prov_proc = p;
+		if (c->alloc_proc == p)
+			TAILQ_INSERT_TAIL(&p->ksched_data.corealloc_data.prov_alloc_me, c,
+							  prov_next);
+		else
+			TAILQ_INSERT_TAIL(&p->ksched_data.corealloc_data.prov_not_alloc_me,
+							  c, prov_next);
+	}
+}
 
 void print_node(struct sched_pnode *n)
 {
