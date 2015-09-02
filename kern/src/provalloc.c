@@ -414,24 +414,6 @@ struct sched_pcore *provalloc_alloc_core(struct proc *p)
 	return c;
 }
 
-//int free_core_specific(struct proc* p, int core_id)
-//{
-//	return free_core(p, core_id);
-//}
-
-///* Allocate a specific core to the proc p. */
-//void alloc_core_specific(struct proc *p, int core_id)
-//{
-//	if (core_id <= num_cores) {
-//		struct sched_pcore *c = &core_list[core_id];
-//		if (c->prov_proc == p) {
-//			c = alloc_core(p, c);
-//			TAILQ_INSERT_TAIL(&p->ksched_data.alloc_me, c, alloc_next);
-//		}
-//	}
-//}
-
-/* Remove the provision made by a proc for a core. */
 static void deprovision_core(struct sched_pcore *c)
 {
 	struct proc *p = c-> prov_proc;
