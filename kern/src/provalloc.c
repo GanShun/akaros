@@ -208,7 +208,7 @@ static struct sched_pcore *find_best_core_provision(struct proc *p)
 	struct sched_pcore *c = NULL;
 	TAILQ_FOREACH(c, &core_prov_available, prov_next) {
 		int sibd = calc_core_distance(core_alloc, c);
-		if (bestd == 0 || sibd < bestd) {
+		if ((bestd == 0 || sibd < bestd) && c->spc_info->core_id !=0 ) {
 			bestd = sibd;
 			bestc = c;
 		}
@@ -249,7 +249,8 @@ static struct sched_pcore *find_best_core(struct proc *p)
 				struct sched_pcore *sibc = &core_list[sibling_id];
 				if (sibc->alloc_proc == NULL) {
 					int sibd = calc_core_distance(core_owned, sibc);
-					if (bestd == 0 || sibd <= bestd) {
+					if ((bestd == 0 || sibd <= bestd) &&
+						 sibc->spc_info->core_id !=0) {
 						/* If the core we have found has best core is
 						 * provisioned by an other proc, we try to find an
 						 * equivalent core (in terms of distance) and allocate
