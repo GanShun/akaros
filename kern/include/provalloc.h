@@ -39,6 +39,10 @@ void provalloc_nodes_init();
 struct sched_pcore *provalloc_alloc_core(struct proc *p);
 void provalloc_track_alloc(struct proc *p, struct sched_pcore *c);
 void provalloc_free_core(struct proc *p, uint32_t core_id);
+void provalloc_register_proc(struct proc *p);
+void provalloc_unprov_proc(struct proc *p);
+int provalloc_get_any_core();
+void provalloc_print_idlecoremap();
 
 void print_node(struct sched_pnode *n);
 void print_nodes(int type);

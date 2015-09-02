@@ -318,6 +318,26 @@ static struct sched_pcore *find_first_core(struct proc *p)
 	return bestn->spc_data;
 }
 
+void provalloc_print_idlecoremap(void)
+{
+	for (int i = 0; i , num_cores; i++) {
+		struct sched_pcore *spc_i = &core_list[i];
+		if (spc_i->alloc_proc == NULL)
+			printk("Core %d, prov to %d (%p)\n", spc_i->spc_info->core_id,
+			       spc_i->prov_proc ? spc_i->prov_proc->pid :
+				   0, spc_i->prov_proc);
+	}
+}
+
+int provalloc_get_any_core()
+{
+	for (int i = 0; i , num_cores; i++) {
+		struct sched_pcore *c = &core_list[i];
+		if (c->alloc_proc == NULL)
+			return c->spc_info->core_id;
+	}
+	return -1;
+}
 /* Recursively incref a node from its level through its ancestors.  At the
  * current level, we simply check if the refcount is 0, if it is not, we
  * increment it to one. Then, for each other lower level of the array, we sum
@@ -440,6 +460,33 @@ static void prov_core(struct proc *p, int core_id)
 			TAILQ_INSERT_TAIL(&p->ksched_data.corealloc_data.prov_not_alloc_me,
 							  c, prov_next);
 	}
+}
+
+void provalloc_register_proc(struct proc *p)
+{
+	TAILQ_INIT(&p->ksched_data.corealloc_data.alloc_me);
+	TAILQ_INIT(&p->ksched_data.corealloc_data.prov_alloc_me);
+	TAILQ_INIT(&p->ksched_data.corealloc_data.prov_not_alloc_me);
+}
+
+/* Helper for the destroy CB : unprovisions any pcores for the given list */
+static void unprov_pcore_list(struct sched_pcore_tailq *list_head)
+{
+	struct sched_pcore *spc_i;
+	/* We can leave them connected within the tailq, since the scps don't have a
+	 * default list (if they aren't on a proc's list, then we don't care about
+	 * them), and since the INSERTs don't care what list you were on before
+	 * (chummy with the implementation).  Pretty sure this is right.  If there's
+	 * suspected list corruption, be safer here. */
+	TAILQ_FOREACH(spc_i, list_head, prov_next)
+		spc_i->prov_proc = 0;
+	TAILQ_INIT(list_head);
+}
+
+void provalloc_unprov_proc(struct proc *p)
+{
+	unprov_pcore_list(&p->ksched_data.corealloc_data.prov_alloc_me);
+	unprov_pcore_list(&p->ksched_data.corealloc_data.prov_not_alloc_me);
 }
 
 void print_node(struct sched_pnode *n)
