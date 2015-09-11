@@ -422,8 +422,8 @@ void provalloc_free_core(struct proc *p, uint32_t core_id)
 }
 
 
-/* Allocate an amount of cores for proc p. Those cores are elected according to
- * the algorithm in find_best_core. */
+/* Allocate a core for proc p. This core is elected according to the algorithm
+ * in find_best_core or find_first_core. */
 struct sched_pcore *provalloc_alloc_core(struct proc *p)
 {
 	struct sched_pcore *c = NULL;

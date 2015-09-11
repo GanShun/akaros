@@ -28,9 +28,6 @@ struct proc_list all_mcps_2 = TAILQ_HEAD_INITIALIZER(all_mcps_2);
 struct proc_list *primary_mcps = &all_mcps_1;
 struct proc_list *secondary_mcps = &all_mcps_2;
 
-/* The pcores in the system.  (array gets alloced in init()).  */
-struct sched_pcore *all_pcores;
-
 /* Helper, defined below */
 static void __core_request(struct proc *p, uint32_t amt_needed);
 static void add_to_list(struct proc *p, struct proc_list *list);
@@ -115,8 +112,6 @@ void schedule_init(void)
 	/* init provqlloc structures stuff */
 	provalloc_nodes_init();
 	/* init provisioning stuff */
-	all_pcores = kmalloc(sizeof(struct sched_pcore) * num_cores, 0);
-	memset(all_pcores, 0, sizeof(struct sched_pcore) * num_cores);
 	assert(!core_id());		/* want the alarm on core0 for now */
 	init_awaiter(&ksched_waiter, __ksched_tick);
 	set_ksched_alarm();
