@@ -580,9 +580,7 @@ static void __core_request(struct proc *p, uint32_t amt_needed)
 	/* get all available cores from their prov_not_alloc list.  the list might
 	 * change when we unlock (new cores added to it, or the entire list emptied,
 	 * but no core allocations will happen (we hold the poke)). */
-	while (!TAILQ_EMPTY(&p->ksched_data.corealloc_data.prov_not_alloc_me)) {
-		if (nr_to_grant == amt_needed)
-			break;
+	while (nr_to_grant != amt_needed) {
 		/* picking the next victim (first on the not_alloc list) */
 		spc_i = provalloc_alloc_core(p);
 		/* someone else has this proc's pcore, so we need to try to preempt.
@@ -661,14 +659,6 @@ static void __core_request(struct proc *p, uint32_t amt_needed)
 		 * We'll give p its cores via a bulk list, which is better for the proc
 		 * mgmt code (when going from runnable to running). */
 		corelist[nr_to_grant] = provalloc_spc2pcoreid(spc_i);
-		nr_to_grant++;
-		__prov_track_alloc(p, provalloc_spc2pcoreid(spc_i));
-	}
-	/* Try to get cores from the idle list that aren't prov to me (FCFS) */
-	while (nr_to_grant != amt_needed){
-		spc_i = provalloc_alloc_core(p);
-		//TAILQ_REMOVE(&idlecores, spc_i, alloc_next);
-		corelist[nr_to_grant] = spc2pcoreid(spc_i);
 		nr_to_grant++;
 		__prov_track_alloc(p, provalloc_spc2pcoreid(spc_i));
 	}
