@@ -31,6 +31,7 @@
  */
 
 #include <provalloc.h>
+#include <provision.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
@@ -434,33 +435,6 @@ struct sched_pcore *provalloc_alloc_core(struct proc *p)
 	return c;
 }
 
-static void deprovision_core(struct sched_pcore *c)
-{
-	struct proc *p = c-> prov_proc;
-	c->prov_proc = NULL;
-	if (c->alloc_proc == p)
-		TAILQ_REMOVE(&p->ksched_data.corealloc_data.prov_alloc_me, c, prov_next);
-	else
-		TAILQ_REMOVE(&p->ksched_data.corealloc_data.prov_alloc_me, c, prov_next);
-}
-
-/* Provision a given core to the proc p. This function is just used for test
- * here, we should move it to an other file dedicated to provisioning stuffs */
-static void prov_core(struct proc *p, int core_id)
-{
-	if (core_id <= num_cores) {
-		struct sched_pcore *c = &core_list[core_id];
-		if (c->prov_proc != NULL)
-			deprovision_core(c);
-		c->prov_proc = p;
-		if (c->alloc_proc == p)
-			TAILQ_INSERT_TAIL(&p->ksched_data.corealloc_data.prov_alloc_me, c,
-							  prov_next);
-		else
-			TAILQ_INSERT_TAIL(&p->ksched_data.corealloc_data.prov_not_alloc_me,
-							  c, prov_next);
-	}
-}
 
 uint32_t provalloc_spc2pcoreid(struct sched_pcore *spc)
 {
@@ -479,25 +453,6 @@ void provalloc_register_proc(struct proc *p)
 	TAILQ_INIT(&p->ksched_data.corealloc_data.prov_not_alloc_me);
 }
 
-/* Helper for the destroy CB : unprovisions any pcores for the given list */
-static void unprov_pcore_list(struct sched_pcore_tailq *list_head)
-{
-	struct sched_pcore *spc_i;
-	/* We can leave them connected within the tailq, since the scps don't have a
-	 * default list (if they aren't on a proc's list, then we don't care about
-	 * them), and since the INSERTs don't care what list you were on before
-	 * (chummy with the implementation).  Pretty sure this is right.  If there's
-	 * suspected list corruption, be safer here. */
-	TAILQ_FOREACH(spc_i, list_head, prov_next)
-		spc_i->prov_proc = 0;
-	TAILQ_INIT(list_head);
-}
-
-void provalloc_unprov_proc(struct proc *p)
-{
-	unprov_pcore_list(&p->ksched_data.corealloc_data.prov_alloc_me);
-	unprov_pcore_list(&p->ksched_data.corealloc_data.prov_not_alloc_me);
-}
 
 void print_node(struct sched_pnode *n)
 {
@@ -535,6 +490,8 @@ void test_structure()
 	struct proc *p1 = kmalloc(sizeof(struct proc), 0);
 	struct proc *p2 = kmalloc(sizeof(struct proc), 0);
 	TAILQ_INIT(&p1->ksched_data.corealloc_data.alloc_me);
+	p1->user[0] = '1';
+	p2->user[0] = '2';
 	TAILQ_INIT(&p2->ksched_data.corealloc_data.alloc_me);
 	TAILQ_INIT(&p1->ksched_data.corealloc_data.prov_alloc_me);
 	TAILQ_INIT(&p2->ksched_data.corealloc_data.prov_alloc_me);
@@ -543,19 +500,19 @@ void test_structure()
 
 	core_list[0].alloc_proc = -1;
 
-	prov_core(p1, 7);
+	provision_prov_core(p1, 7);
 	c = provalloc_alloc_core(p1);
 	provalloc_track_alloc(p1, c);
 
-	prov_core(p2, 3);
+	provision_prov_core(p2, 3);
 	c = provalloc_alloc_core(p2);
 	provalloc_track_alloc(p2, c);
 
-	prov_core(p2, 4);
+	provision_prov_core(p2, 4);
 	c = provalloc_alloc_core(p2);
 	provalloc_track_alloc(p2, c);
 
-	prov_core(p1, 4);
+	provision_prov_core(p1, 4);
 	c = provalloc_alloc_core(p1);
 	provalloc_track_alloc(p1, c);
 
@@ -563,7 +520,7 @@ void test_structure()
 	provalloc_track_alloc(p1, c);
 
 	provalloc_free_core(p1, 7);
-	prov_core(p2, 5);
+	provision_prov_core(p2, 5);
 
 
 	printk("Cores allocated:\n");
