@@ -170,6 +170,9 @@ void provalloc_nodes_init()
 
 	/* Initialize our 2 dimensions array of core_distance */
 	init_core_distances();
+
+	/* "Allocate" core 0 to the kernel */
+	core_list[0].alloc_proc = -1;
 }
 
 /* Returns the first core for the node n. */
@@ -209,7 +212,7 @@ static struct sched_pcore *find_best_core_provision(struct proc *p)
 	struct sched_pcore *c = NULL;
 	TAILQ_FOREACH(c, &core_prov_available, prov_next) {
 		int sibd = calc_core_distance(core_alloc, c);
-		if ((bestd == 0 || sibd < bestd) && c->spc_info->core_id !=0 ) {
+		if (bestd == 0 || sibd < bestd) {
 			bestd = sibd;
 			bestc = c;
 		}
@@ -250,8 +253,7 @@ static struct sched_pcore *find_best_core(struct proc *p)
 				struct sched_pcore *sibc = &core_list[sibling_id];
 				if (sibc->alloc_proc == NULL) {
 					int sibd = calc_core_distance(core_owned, sibc);
-					if ((bestd == 0 || sibd <= bestd) &&
-						 sibc->spc_info->core_id !=0) {
+					if (bestd == 0 || sibd <= bestd) {
 						/* If the core we have found has best core is
 						 * provisioned by an other proc, we try to find an
 						 * equivalent core (in terms of distance) and allocate
@@ -497,8 +499,6 @@ void test_structure()
 	TAILQ_INIT(&p2->ksched_data.corealloc_data.prov_alloc_me);
 	TAILQ_INIT(&p1->ksched_data.corealloc_data.prov_not_alloc_me);
 	TAILQ_INIT(&p2->ksched_data.corealloc_data.prov_not_alloc_me);
-
-	core_list[0].alloc_proc = -1;
 
 	provision_prov_core(p1, 7);
 	c = provalloc_alloc_core(p1);
