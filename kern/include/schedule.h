@@ -11,7 +11,7 @@
 
 #include <ros/common.h>
 #include <sys/queue.h>
-#include <provalloc.h>
+#include <core_request.h>
 
 struct proc;	/* process.h includes us, but we need pointers now */
 TAILQ_HEAD(proc_list, proc);		/* Declares 'struct proc_list' */

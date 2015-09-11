@@ -35,15 +35,17 @@ struct corealloc_data {
 	struct sched_pcore_tailq	prov_not_alloc_me;	/* maybe alloc to others */
 };
 
-void provalloc_nodes_init();
-struct sched_pcore *provalloc_alloc_core(struct proc *p);
-void provalloc_track_alloc(struct proc *p, struct sched_pcore *c);
-void provalloc_free_core(struct proc *p, uint32_t core_id);
-void provalloc_register_proc(struct proc *p);
-int provalloc_get_any_core();
-void provalloc_print_idlecoremap();
-uint32_t provalloc_spc2pcoreid(struct sched_pcore *spc);
-struct sched_pcore *provalloc_pcoreid2spc(uint32_t pcoreid);
+void corerequest_nodes_init();
+struct sched_pcore *corerequest_alloc_core(struct proc *p);
+void corerequest_track_alloc(struct proc *p, struct sched_pcore *c);
+void corerequest_free_core(struct proc *p, uint32_t core_id);
+void corerequest_register_proc(struct proc *p);
+int corerequest_get_any_core();
+void corerequest_print_idlecoremap();
+uint32_t corerequest_spc2pcoreid(struct sched_pcore *spc);
+struct sched_pcore *corerequest_pcoreid2spc(uint32_t pcoreid);
+void corerequest_unprov_proc(struct proc *p);
+void corerequest_prov_core(struct proc *p, uint32_t pcoreid);
 
 
 void print_node(struct sched_pnode *n);
