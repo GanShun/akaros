@@ -37,8 +37,6 @@ static void add_to_list(struct proc *p, struct proc_list *list);
 static void remove_from_list(struct proc *p, struct proc_list *list);
 static void switch_lists(struct proc *p, struct proc_list *old,
                          struct proc_list *new);
-static uint32_t spc2pcoreid(struct sched_pcore *spc);
-static struct sched_pcore *pcoreid2spc(uint32_t pcoreid);
 static bool is_ll_core(uint32_t pcoreid);
 static void __prov_track_alloc(struct proc *p, uint32_t pcoreid);
 static void __prov_track_dealloc(struct proc *p, uint32_t pcoreid);
@@ -130,16 +128,6 @@ void schedule_init(void)
 	send_kernel_message(arsc_coreid, arsc_server, 0, 0, 0, KMSG_ROUTINE);
 	printk("Using core %d for the ARSC server\n", arsc_coreid);
 #endif /* CONFIG_ARSC_SERVER */
-}
-
-static uint32_t spc2pcoreid(struct sched_pcore *spc)
-{
-	return spc - all_pcores;
-}
-
-static struct sched_pcore *pcoreid2spc(uint32_t pcoreid)
-{
-	return &all_pcores[pcoreid];
 }
 
 /* Round-robins on whatever list it's on */
@@ -295,7 +283,7 @@ void __sched_scp_wakeup(struct proc *p)
  * a scheduling decision (or at least plan to). */
 void __sched_put_idle_core(struct proc *p, uint32_t coreid)
 {
-	struct sched_pcore *spc = pcoreid2spc(coreid);
+	struct sched_pcore *spc = provalloc_pcoreid2spc(coreid);
 	spin_lock(&sched_lock);
 	__prov_track_dealloc(p, coreid);
 	spin_unlock(&sched_lock);
@@ -539,7 +527,7 @@ int get_any_idle_core(void)
 	int ret = -1;
 	spin_lock(&sched_lock);
 	ret = provalloc_get_any_core();
-	struct sched_pcore *spc = pcoreid2spc(ret);
+	struct sched_pcore *spc = provalloc_pcoreid2spc(ret);
 	if (!spc->alloc_proc && !spc->prov_proc) {
 		assert(!spc->alloc_proc);
 	/* TODO Remove this core from the idlecore list and check when provisioning
@@ -551,7 +539,7 @@ int get_any_idle_core(void)
 
 int get_this_idle_core(int coreid)
 {
-	struct sched_pcore *spc = pcoreid2spc(coreid);
+	struct sched_pcore *spc = provalloc_pcoreid2spc(coreid);
 	int ret = -1;
 	assert((0 <= coreid) && (coreid < num_cores));
 	spin_lock(&sched_lock);
@@ -613,7 +601,7 @@ static void __core_request(struct proc *p, uint32_t amt_needed)
 			proc_incref(proc_to_preempt, 1);
 			spin_unlock(&sched_lock);
 			/* sending no warning time for now - just an immediate preempt. */
-			success = proc_preempt_core(proc_to_preempt, spc2pcoreid(spc_i), 0);
+			success = proc_preempt_core(proc_to_preempt, provalloc_spc2pcoreid(spc_i), 0);
 			/* reaquire locks to protect provisioning and idle lists */
 			spin_lock(&sched_lock);
 			if (success) {
@@ -626,7 +614,7 @@ static void __core_request(struct proc *p, uint32_t amt_needed)
 				/* regardless of whether or not it is still prov to p, we need
 				 * to note its dealloc.  we are doing some excessive checking of
 				 * p == prov_proc, but using this helper is a lot clearer. */
-				__prov_track_dealloc(proc_to_preempt, spc2pcoreid(spc_i));
+				__prov_track_dealloc(proc_to_preempt, provalloc_spc2pcoreid(spc_i));
 				/* here, we rely on the fact that we are the only preemptor.  we
 				 * assume no one else preempted it, so we know it is available*/
 
@@ -677,19 +665,17 @@ static void __core_request(struct proc *p, uint32_t amt_needed)
 		 *
 		 * We'll give p its cores via a bulk list, which is better for the proc
 		 * mgmt code (when going from runnable to running). */
-		corelist[nr_to_grant] = spc2pcoreid(spc_i);
+		corelist[nr_to_grant] = provalloc_spc2pcoreid(spc_i);
 		nr_to_grant++;
-		__prov_track_alloc(p, spc2pcoreid(spc_i));
+		__prov_track_alloc(p, provalloc_spc2pcoreid(spc_i));
 	}
 	/* Try to get cores from the idle list that aren't prov to me (FCFS) */
 	while (nr_to_grant != amt_needed){
 		spc_i = provalloc_alloc_core(p);
-
 		//TAILQ_REMOVE(&idlecores, spc_i, alloc_next);
-
 		corelist[nr_to_grant] = spc2pcoreid(spc_i);
 		nr_to_grant++;
-		__prov_track_alloc(p, spc2pcoreid(spc_i));
+		__prov_track_alloc(p, provalloc_spc2pcoreid(spc_i));
 	}
 	/* Now, actually give them out */
 	if (nr_to_grant) {
@@ -743,7 +729,7 @@ static void __prov_track_alloc(struct proc *p, uint32_t pcoreid)
 {
 	struct sched_pcore *spc;
 	assert(pcoreid < num_cores);	/* catch bugs */
-	spc = pcoreid2spc(pcoreid);
+	spc = provalloc_pcoreid2spc(pcoreid);
 	assert(spc->alloc_proc != p);	/* corruption or double-alloc */
 	provalloc_track_alloc(p, spc);
 }
@@ -780,7 +766,7 @@ int provision_core(struct proc *p, uint32_t pcoreid)
 		set_errno(EBUSY);
 		return -1;
 	}
-	spc = pcoreid2spc(pcoreid);
+	spc = provalloc_pcoreid2spc(pcoreid);
 	/* Note the sched lock protects the spc tailqs for all procs in this code.
 	 * If we need a finer grained sched lock, this is one place where we could
 	 * have a different lock */
@@ -866,7 +852,7 @@ void print_prov_map(void)
 	/* Doing this unlocked, which is dangerous, but won't deadlock */
 	printk("Which cores are provisioned to which procs:\n------------------\n");
 	for (int i = 0; i < num_cores; i++) {
-		spc_i = pcoreid2spc(i);
+		spc_i = provalloc_pcoreid2spc(i);
 		printk("Core %02d, prov: %d(%p) alloc: %d(%p)\n", i,
 		       spc_i->prov_proc ? spc_i->prov_proc->pid : 0, spc_i->prov_proc,
 		       spc_i->alloc_proc ? spc_i->alloc_proc->pid : 0,
@@ -882,11 +868,11 @@ void print_proc_prov(struct proc *p)
 	printk("Prov cores alloced to proc %d (%p)\n----------\n", p->pid, p);
 	TAILQ_FOREACH(spc_i, &p->ksched_data.corealloc_data.prov_alloc_me,
 				  prov_next)
-		printk("Pcore %d\n", spc2pcoreid(spc_i));
+		printk("Pcore %d\n", provalloc_spc2pcoreid(spc_i));
 	printk("Prov cores not alloced to proc %d (%p)\n----------\n", p->pid, p);
 	TAILQ_FOREACH(spc_i, &p->ksched_data.corealloc_data.prov_not_alloc_me,
 				  prov_next)
-		printk("Pcore %d (alloced to %d (%p))\n", spc2pcoreid(spc_i),
+		printk("Pcore %d (alloced to %d (%p))\n", provalloc_spc2pcoreid(spc_i),
 		       spc_i->alloc_proc ? spc_i->alloc_proc->pid : 0,
 		       spc_i->alloc_proc);
 }
@@ -903,7 +889,7 @@ void next_core(uint32_t pcoreid)
 	bool match = FALSE;
 	spin_lock(&sched_lock);
 	//TAILQ_FOREACH(spc_i, &idlecores, alloc_next) {
-		if (spc2pcoreid(spc_i) == pcoreid) {
+		if (provalloc_spc2pcoreid(spc_i) == pcoreid) {
 			match = TRUE;
 	//		break;
 		}

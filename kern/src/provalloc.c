@@ -462,6 +462,16 @@ static void prov_core(struct proc *p, int core_id)
 	}
 }
 
+uint32_t provalloc_spc2pcoreid(struct sched_pcore *spc)
+{
+	return spc->spc_info->core_id;
+}
+
+struct sched_pcore *provalloc_pcoreid2spc(uint32_t pcoreid)
+{
+	return &core_list[pcoreid];
+}
+
 void provalloc_register_proc(struct proc *p)
 {
 	TAILQ_INIT(&p->ksched_data.corealloc_data.alloc_me);
