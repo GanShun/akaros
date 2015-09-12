@@ -53,4 +53,15 @@ void print_nodes(int type);
 void print_all_nodes();
 void test_structure();
 
+/* Use this inline fucntions in schedule.c to avoid accessing fields directly*/
+static inline struct proc *get_alloc_proc(struct sched_pcore *c)
+{
+	return c->alloc_proc;
+}
+
+static inline struct proc *get_prov_proc(struct sched_pcore *c)
+{
+	return c->prov_proc;
+}
+
 #endif

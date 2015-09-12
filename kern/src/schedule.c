@@ -587,8 +587,8 @@ static void __core_request(struct proc *p, uint32_t amt_needed)
 		/* someone else has this proc's pcore, so we need to try to preempt.
 		 * after this block, the core will be tracked dealloc'd and on the idle
 		 * list (regardless of whether we had to preempt or not) */
-		if (spc_i->alloc_proc) {
-			proc_to_preempt = spc_i->alloc_proc;
+		if (get_alloc_proc(spc_i)) {
+			proc_to_preempt = get_alloc_proc(spc_i);
 			/* would break both preemption and maybe the later decref */
 			assert(proc_to_preempt != p);
 			/* need to keep a valid, external ref when we unlock */
@@ -604,7 +604,7 @@ static void __core_request(struct proc *p, uint32_t amt_needed)
 				 * idle CBs).  the core is not on the idle core list.  (if we
 				 * ever have proc alloc lists, it'll still be on the old proc's
 				 * list). */
-				assert(spc_i->alloc_proc);
+				assert(get_alloc_proc(spc_i));
 				/* regardless of whether or not it is still prov to p, we need
 				 * to note its dealloc.  we are doing some excessive checking of
 				 * p == prov_proc, but using this helper is a lot clearer. */
@@ -631,7 +631,7 @@ static void __core_request(struct proc *p, uint32_t amt_needed)
 				 * allocator, the pcore could have been put on the idle list and
 				 * then quickly removed/allocated. */
 				cmb();
-				while (spc_i->alloc_proc) {
+				while (get_alloc_proc(spc_i)) {
 					/* this loop should be very rare */
 					spin_unlock(&sched_lock);
 					udelay(1);
@@ -642,7 +642,7 @@ static void __core_request(struct proc *p, uint32_t amt_needed)
 			proc_decref(proc_to_preempt);
 			/* might not be prov to p anymore (rare race).  spc_i is idle - we
 			 * might get it later, or maybe we'll give it to its rightful proc*/
-			if (spc_i->prov_proc != p)
+			if (get_prov_proc(spc_i) != p)
 				continue;
 		}
 		/* at this point, the pcore is idle, regardless of how we got here
@@ -812,10 +812,11 @@ void print_prov_map(void)
 	printk("Which cores are provisioned to which procs:\n------------------\n");
 	for (int i = 0; i < num_cores; i++) {
 		spc_i = corerequest_pcoreid2spc(i);
+		struct proc *alloc_p = get_alloc_proc(spc_i);
+		struct proc *prov_p = get_prov_proc(spc_i);
 		printk("Core %02d, prov: %d(%p) alloc: %d(%p)\n", i,
-		       spc_i->prov_proc ? spc_i->prov_proc->pid : 0, spc_i->prov_proc,
-		       spc_i->alloc_proc ? spc_i->alloc_proc->pid : 0,
-		       spc_i->alloc_proc);
+		       prov_p ? prov_p->pid : 0, prov_p,
+		       alloc_p ? alloc_p->pid : 0, alloc_p);
 	}
 }
 
@@ -830,10 +831,11 @@ void print_proc_prov(struct proc *p)
 		printk("Pcore %d\n", corerequest_spc2pcoreid(spc_i));
 	printk("Prov cores not alloced to proc %d (%p)\n----------\n", p->pid, p);
 	TAILQ_FOREACH(spc_i, &p->ksched_data.corealloc_data.prov_not_alloc_me,
-				  prov_next)
+				  prov_next) {
+		struct proc *alloc_p = get_alloc_proc(spc_i);
 		printk("Pcore %d (alloced to %d (%p))\n", corerequest_spc2pcoreid(spc_i),
-		       spc_i->alloc_proc ? spc_i->alloc_proc->pid : 0,
-		       spc_i->alloc_proc);
+		       alloc_p ? alloc_p->pid : 0, alloc_p);
+	}
 }
 
 /* TODO: Here we need a way to handle the next core that will be allocated by
