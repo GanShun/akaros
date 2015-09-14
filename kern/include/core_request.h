@@ -38,8 +38,8 @@ struct corealloc_data {
 void corerequest_nodes_init();
 struct sched_pcore *corerequest_alloc_core(struct proc *p);
 void corerequest_track_alloc(struct proc *p, struct sched_pcore *c);
-void corerequest_free_core(struct proc *p, uint32_t core_id);
 void corerequest_register_proc(struct proc *p);
+void corerequest_track_dealloc(struct proc *p, uint32_t core_id);
 int corerequest_get_any_core();
 void corerequest_print_idlecoremap();
 uint32_t corerequest_spc2pcoreid(struct sched_pcore *spc);
