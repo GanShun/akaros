@@ -42,22 +42,22 @@ struct sched_pcore *all_pcores;
 /* TAILQ of all unallocated, idle (CG) cores */
 struct sched_pcore_tailq idlecores = TAILQ_HEAD_INITIALIZER(idlecores);
 
-struct sched_pcore *corerequest_fcfs_pcoreid2spc(uint32_t pcoreid)
+struct sched_pcore *corerequest_pcoreid2spc(uint32_t pcoreid)
 {
 	return &all_pcores[pcoreid];
 }
 
-uint32_t corerequest_fcfs_spc2pcoreid(struct sched_pcore *spc)
+uint32_t corerequest_spc2pcoreid(struct sched_pcore *spc)
 {
 	return spc - all_pcores;
 }
 
-void corerequest_fcfs_nodes_init()
+void corerequest_nodes_init()
 {
 	all_pcores = kmalloc(sizeof(struct sched_pcore) * num_cores, 0);
 	memset(all_pcores, 0, sizeof(struct sched_pcore) * num_cores);
 	for (int i = 1; i < num_cores; i++) {
-		struct sched_pcore *spc_i = corerequest_fcfs_pcoreid2spc(i);
+		struct sched_pcore *spc_i = corerequest_pcoreid2spc(i);
 		spc_i->alloc_proc = NULL;
 		spc_i->prov_proc = NULL;
 		TAILQ_INSERT_TAIL(&idlecores, spc_i, alloc_next);
@@ -66,7 +66,7 @@ void corerequest_fcfs_nodes_init()
 	all_pcores[0].alloc_proc = -1;
 }
 
-struct sched_pcore *corerequest_fcfs_alloc_core(struct proc *p)
+struct sched_pcore *corerequest_alloc_core(struct proc *p)
 {
 	struct sched_pcore *spc_i = NULL;
 	if (!TAILQ_EMPTY(&p->ksched_data.corealloc_data.prov_not_alloc_me))
@@ -82,21 +82,21 @@ void corerequest_fcfs_track_alloc(struct proc *p, struct sched_pcore *c)
 	TAILQ_REMOVE(&idlecores, c, alloc_next);
 }
 
-void corerequest_fcfs_track_dealloc(struct proc *p, uint32_t core_id)
+void corerequest_track_dealloc(struct proc *p, uint32_t core_id)
 {
 	struct sched_pcore *c = &all_pcores[core_id];	
 	__track_dealloc(p, c);
 	TAILQ_INSERT_TAIL(&idlecores, c, alloc_next);
 }
 
-int corerequest_fcfs_get_any_core()
+int corerequest_get_any_core()
 {
 	struct sched_pcore *spc_i = NULL;
 	spc_i = TAILQ_FIRST(&idlecores); 
 	if (spc_i == NULL)
 		return -1;
 	else
-		return corerequest_fcfs_spc2pcoreid(spc_i);
+		return corerequest_spc2pcoreid(spc_i);
 }
 
 void corerequest_register_proc(struct proc *p)
