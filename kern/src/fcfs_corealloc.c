@@ -64,7 +64,7 @@ void corerequest_nodes_init()
 		TAILQ_INSERT_TAIL(&idlecores, spc_i, alloc_next);
 	}
 	/* "Allocate" core 0 to the kernel */
-	all_pcores[0].alloc_proc = -1;
+	all_pcores[0].alloc_proc = (void*)-1;
 }
 
 struct sched_pcore *corerequest_alloc_core(struct proc *p)

@@ -46,8 +46,6 @@ struct sched_pnode {
 	struct sched_pcore *spc_data;
 };
 
-#define num_cores           (cpu_topology_info.num_cores)
-#define num_cores_power2    (cpu_topology_info.num_cores_power2)
 #define num_cpus            (cpu_topology_info.num_cpus)
 #define num_sockets         (cpu_topology_info.num_sockets)
 #define num_numa            (cpu_topology_info.num_numa)
