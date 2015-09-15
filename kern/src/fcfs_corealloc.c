@@ -77,10 +77,40 @@ struct sched_pcore *corerequest_alloc_core(struct proc *p)
 	return spc_i;
 }
 
-void corerequest_fcfs_track_alloc(struct proc *p, struct sched_pcore *c)
+static void __track_alloc(struct proc *p, struct sched_pcore *c)
 {
-	__track_alloc(p, c);
+	struct proc *owner = c->alloc_proc;
+	if (c->prov_proc == p) {
+		TAILQ_REMOVE(&p->ksched_data.corealloc_data.prov_not_alloc_me, c,
+					 prov_next);
+		TAILQ_INSERT_HEAD(&p->ksched_data.corealloc_data.prov_alloc_me, c,
+					      prov_next);
+		if (owner != NULL) {
+			TAILQ_REMOVE(&(owner->ksched_data.corealloc_data.alloc_me), c, alloc_next);
+		}
+	}
+	TAILQ_INSERT_TAIL(&p->ksched_data.corealloc_data.alloc_me, c, alloc_next);
+	c->alloc_proc = p;
+}
+
+static void __track_dealloc(struct proc *p, struct sched_pcore *c)
+{
+	if ( corerequest_spc2pcoreid(c) == 0)
+		return;
+	c->alloc_proc = NULL;
+	TAILQ_REMOVE(&(p->ksched_data.corealloc_data.alloc_me), c, alloc_next);
+	if (c->prov_proc == p){
+		TAILQ_REMOVE(&p->ksched_data.corealloc_data.prov_alloc_me, c,
+					 prov_next);
+		TAILQ_INSERT_HEAD(&(p->ksched_data.corealloc_data.prov_not_alloc_me), c,
+						  prov_next);
+	}
+}
+
+void corerequest_track_alloc(struct proc *p, struct sched_pcore *c)
+{
 	TAILQ_REMOVE(&idlecores, c, alloc_next);
+	__track_alloc(p, c);
 }
 
 void corerequest_track_dealloc(struct proc *p, uint32_t core_id)
@@ -107,41 +137,17 @@ void corerequest_register_proc(struct proc *p)
 	TAILQ_INIT(&p->ksched_data.corealloc_data.prov_not_alloc_me);
 }
 
-void __track_alloc(struct proc *p, struct sched_pcore *c)
 void print_idlecore()
 {
-	struct proc *owner = c->alloc_proc;
-	if (c->prov_proc == p) {
-		TAILQ_REMOVE(&p->ksched_data.corealloc_data.prov_not_alloc_me, c,
-					 prov_next);
-		TAILQ_INSERT_HEAD(&p->ksched_data.corealloc_data.prov_alloc_me, c,
-					      prov_next);
-		if (owner != NULL) {
-			TAILQ_REMOVE(&(owner->ksched_data.corealloc_data.alloc_me), c, alloc_next);
-		}
 	struct sched_pcore *c = NULL;
 	TAILQ_FOREACH(c, &idlecores, alloc_next) {
 		printk("core %d\n", corerequest_spc2pcoreid(c));
 	}
-	TAILQ_INSERT_TAIL(&p->ksched_data.corealloc_data.alloc_me, c, alloc_next);
-	c->alloc_proc = p;
 }
 
-void __track_dealloc(struct proc *p, struct sched_pcore *c)
 
 void corerequest_print_idlecoremap(void)
 {
-	if ( corerequest_spc2pcoreid(c) == 0)
-		return;
-	c->alloc_proc = NULL;
-	TAILQ_REMOVE(&(p->ksched_data.corealloc_data.alloc_me), c, alloc_next);
-	if (c->prov_proc == p){
-		TAILQ_REMOVE(&p->ksched_data.corealloc_data.prov_alloc_me, c,
-					 prov_next);
-		TAILQ_INSERT_HEAD(&(p->ksched_data.corealloc_data.prov_not_alloc_me), c,
-						  prov_next);
-	}
-}
 	for (int i = 0; i , num_cores; i++) {
 		struct sched_pcore *spc_i = corerequest_pcoreid2spc(i);
 		if (spc_i->alloc_proc == NULL)

@@ -382,16 +382,9 @@ static void decref_nodes(struct sched_pnode *n)
 	}
 }
 
-/* Allocate a specific core if it is available. In this case, we need to check
- * if the core n is provisioned by p but allocated to an other proc. Then we
- * have to allocate a new core to this other proc. Also, it is important here
- * to maintain our list of provision and allocated or not allocated cores.
- * TODO ? : We also have to check if the core n is provisioned by an other proc.
- * In this case, we should try to reprovision an other core to this proc. */
-void corerequest_track_alloc(struct proc *p, struct sched_pcore *c)
+static void __track_alloc(struct proc *p, struct sched_pcore *c)
 {
 	struct proc *owner = c->alloc_proc;
-	incref_nodes(c->spn);
 	if (c->prov_proc == p) {
 		TAILQ_REMOVE(&p->ksched_data.corealloc_data.prov_not_alloc_me, c,
 					 prov_next);
@@ -405,11 +398,9 @@ void corerequest_track_alloc(struct proc *p, struct sched_pcore *c)
 	c->alloc_proc = p;
 }
 
-/* Free a specific core. */
-void corerequest_free_core(struct proc *p, uint32_t core_id)
+static void __track_dealloc(struct proc *p, struct sched_pcore *c)
 {
-	struct sched_pcore *c = &core_list[core_id];
-	if (c->spc_info->core_id == 0)
+	if ( corerequest_spc2pcoreid(c) == 0)
 		return;
 	c->alloc_proc = NULL;
 	TAILQ_REMOVE(&(p->ksched_data.corealloc_data.alloc_me), c, alloc_next);
@@ -419,6 +410,25 @@ void corerequest_free_core(struct proc *p, uint32_t core_id)
 		TAILQ_INSERT_HEAD(&(p->ksched_data.corealloc_data.prov_not_alloc_me), c,
 						  prov_next);
 	}
+}
+
+/* Allocate a specific core if it is available. In this case, we need to check
+ * if the core n is provisioned by p but allocated to an other proc. Then we
+ * have to allocate a new core to this other proc. Also, it is important here
+ * to maintain our list of provision and allocated or not allocated cores.
+ * TODO ? : We also have to check if the core n is provisioned by an other proc.
+ * In this case, we should try to reprovision an other core to this proc. */
+void corerequest_track_alloc(struct proc *p, struct sched_pcore *c)
+{
+	incref_nodes(c->spn);
+	__track_alloc(p, c);
+}
+
+/* Free a specific core. */
+void corerequest_track_dealloc(struct proc *p, uint32_t core_id)
+{
+	struct sched_pcore *c = &core_list[core_id];
+	__track_dealloc(p, c);
 	decref_nodes(c->spn);
 }
 

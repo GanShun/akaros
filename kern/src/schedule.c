@@ -725,7 +725,7 @@ static void __prov_track_alloc(struct proc *p, uint32_t pcoreid)
 static void __prov_track_dealloc(struct proc *p, uint32_t pcoreid)
 {
 	assert(pcoreid < num_cores);	/* catch bugs */
-	corerequest_free_core(p, pcoreid);
+	corerequest_track_dealloc(p, pcoreid);
 }
 
 /* Bulk interface for __prov_track_dealloc */
