@@ -526,17 +526,17 @@ void test_structure()
 	c = corerequest_alloc_core(p1);
 	corerequest_track_alloc(p1, c);
 
-	corerequest_free_core(p1, 7);
+	corerequest_track_dealloc(p1, 7);
 	corerequest_prov_core(p2, 5);
 
 
 	printk("Cores allocated:\n");
 	TAILQ_FOREACH(c, &(p1->ksched_data.corealloc_data.alloc_me), alloc_next) {
-		printk("proc%d :core %d\n",1, c->spc_info->core_id);
+		printk("proc%d :core %d\n",1, corerequest_spc2pcoreid(c));
 	}
 	printk("\n");
 	TAILQ_FOREACH(c, &(p2->ksched_data.corealloc_data.alloc_me), alloc_next) {
-		printk("proc%d :core %d\n",2, c->spc_info->core_id);
+		printk("proc%d :core %d\n",2, corerequest_spc2pcoreid(c));
 	}
 	printk("\nCores prov_allocated:\n");
 	TAILQ_FOREACH(c, &(p1->ksched_data.corealloc_data.prov_alloc_me), prov_next) {

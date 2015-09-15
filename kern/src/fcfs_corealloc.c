@@ -155,7 +155,67 @@ void corerequest_print_idlecoremap(void)
 			       spc_i->prov_proc ? spc_i->prov_proc->pid :
 				   0, spc_i->prov_proc);
 	}
-	printk("\n");
 }
 
+void test_structure()
+{
+	struct sched_pcore *c = NULL;
+	struct proc *p1 = kmalloc(sizeof(struct proc), 0);
+	struct proc *p2 = kmalloc(sizeof(struct proc), 0);
+	TAILQ_INIT(&p1->ksched_data.corealloc_data.alloc_me);
+	TAILQ_INIT(&p2->ksched_data.corealloc_data.alloc_me);
+	TAILQ_INIT(&p1->ksched_data.corealloc_data.prov_alloc_me);
+	TAILQ_INIT(&p2->ksched_data.corealloc_data.prov_alloc_me);
+	TAILQ_INIT(&p1->ksched_data.corealloc_data.prov_not_alloc_me);
+	TAILQ_INIT(&p2->ksched_data.corealloc_data.prov_not_alloc_me);
+
+	corerequest_prov_core(p1, 7);
+	c = corerequest_alloc_core(p1);
+	corerequest_track_alloc(p1, c);
+
+	corerequest_prov_core(p2, 3);
+	c = corerequest_alloc_core(p2);
+	corerequest_track_alloc(p2, c);
+
+	corerequest_prov_core(p2, 4);
+	c = corerequest_alloc_core(p2);
+	corerequest_track_alloc(p2, c);
+
+	corerequest_prov_core(p1, 4);
+	c = corerequest_alloc_core(p1);
+	corerequest_track_alloc(p1, c);
+
+	c = corerequest_alloc_core(p1);
+	corerequest_track_alloc(p1, c);
+
+	corerequest_track_dealloc(p1, 7);
+	corerequest_prov_core(p2, 5);
+
+
+	printk("Cores allocated:\n");
+	TAILQ_FOREACH(c, &(p1->ksched_data.corealloc_data.alloc_me), alloc_next) {
+		printk("proc%d :core %d\n",1, corerequest_spc2pcoreid(c));
+	}
+	printk("\n");
+	TAILQ_FOREACH(c, &(p2->ksched_data.corealloc_data.alloc_me), alloc_next) {
+		printk("proc%d :core %d\n",2, corerequest_spc2pcoreid(c));
+	}
+	printk("\nCores prov_allocated:\n");
+	TAILQ_FOREACH(c, &(p1->ksched_data.corealloc_data.prov_alloc_me), prov_next) {
+		printk("proc%d :core %d\n",1, corerequest_spc2pcoreid(c));
+	}
+	printk("\n");
+	TAILQ_FOREACH(c, &(p2->ksched_data.corealloc_data.prov_alloc_me), prov_next) {
+		printk("proc%d :core %d\n",2, corerequest_spc2pcoreid(c));
+	}
+	printk("\nCores prov_not_allocated:\n");
+	TAILQ_FOREACH(c, &(p1->ksched_data.corealloc_data.prov_not_alloc_me), prov_next) {
+		printk("proc%d :core %d\n",1, corerequest_spc2pcoreid(c));
+	}
+	printk("\n");
+	TAILQ_FOREACH(c, &(p2->ksched_data.corealloc_data.prov_not_alloc_me), prov_next) {
+		printk("proc%d :core %d\n",2, corerequest_spc2pcoreid(c));
+	}
+	printk("\n");
+}
 
