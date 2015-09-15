@@ -41,6 +41,7 @@
 struct sched_pcore *all_pcores;
 /* TAILQ of all unallocated, idle (CG) cores */
 struct sched_pcore_tailq idlecores = TAILQ_HEAD_INITIALIZER(idlecores);
+void print_idlecore();
 
 struct sched_pcore *corerequest_pcoreid2spc(uint32_t pcoreid)
 {
@@ -107,6 +108,7 @@ void corerequest_register_proc(struct proc *p)
 }
 
 void __track_alloc(struct proc *p, struct sched_pcore *c)
+void print_idlecore()
 {
 	struct proc *owner = c->alloc_proc;
 	if (c->prov_proc == p) {
@@ -117,12 +119,17 @@ void __track_alloc(struct proc *p, struct sched_pcore *c)
 		if (owner != NULL) {
 			TAILQ_REMOVE(&(owner->ksched_data.corealloc_data.alloc_me), c, alloc_next);
 		}
+	struct sched_pcore *c = NULL;
+	TAILQ_FOREACH(c, &idlecores, alloc_next) {
+		printk("core %d\n", corerequest_spc2pcoreid(c));
 	}
 	TAILQ_INSERT_TAIL(&p->ksched_data.corealloc_data.alloc_me, c, alloc_next);
 	c->alloc_proc = p;
 }
 
 void __track_dealloc(struct proc *p, struct sched_pcore *c)
+
+void corerequest_print_idlecoremap(void)
 {
 	if ( corerequest_spc2pcoreid(c) == 0)
 		return;
@@ -135,4 +142,14 @@ void __track_dealloc(struct proc *p, struct sched_pcore *c)
 						  prov_next);
 	}
 }
+	for (int i = 0; i , num_cores; i++) {
+		struct sched_pcore *spc_i = corerequest_pcoreid2spc(i);
+		if (spc_i->alloc_proc == NULL)
+			printk("Core %d, prov to %d (%p)\n", spc_i->spc_info->core_id,
+			       spc_i->prov_proc ? spc_i->prov_proc->pid :
+				   0, spc_i->prov_proc);
+	}
+	printk("\n");
+}
+
 
