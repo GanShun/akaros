@@ -20,6 +20,7 @@
 #include <mm.h>
 #include <vfs.h>
 #include <schedule.h>
+#include <corerequest.h>
 #include <devalarm.h>
 #include <ns.h>
 #include <arch/vmm/vmm.h>

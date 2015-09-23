@@ -8,4 +8,7 @@
 #ifndef AKAROS_KERN_COREREQUEST_H
 #define AKAROS_KERN_COREREQUEST_H
 
+uint32_t spc2pcoreid(struct sched_pcore *spc);
+struct sched_pcore *pcoreid2spc(uint32_t pcoreid);
+
 #endif // AKAROS_KERN_COREREQUEST_H
