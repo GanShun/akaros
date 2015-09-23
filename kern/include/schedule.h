@@ -71,12 +71,6 @@ void put_idle_core(int coreid);
 /* How many vcores p will think it can have */
 uint32_t max_vcores(struct proc *p);
 
-/************** Provisioning / Allocating *************/
-/* This section is specific to a provisioning ksched.  Careful calling any of
- * this from generic kernel code, since it might not be present in all kernel
- * schedulers. */
-int provision_core(struct proc *p, uint32_t pcoreid);
-
 /************** Debugging **************/
 void sched_diag(void);
 void print_idlecoremap(void);

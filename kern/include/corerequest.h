@@ -35,4 +35,7 @@ struct sched_proc_data {
 uint32_t spc2pcoreid(struct sched_pcore *spc);
 struct sched_pcore *pcoreid2spc(uint32_t pcoreid);
 
+void corerequest_unprov_proc(struct proc *p);
+void corerequest_prov_core(struct proc *p, uint32_t pcoreid);
+
 #endif // AKAROS_KERN_COREREQUEST_H

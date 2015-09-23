@@ -256,13 +256,13 @@ void __sched_proc_destroy(struct proc *p, uint32_t *pc_arr, uint32_t nr_cores)
 	/* Unprovision any cores.  Note this is different than track_dealloc.
 	 * The latter does bookkeeping when an allocation changes.  This is a
 	 * bulk *provisioning* change. */
-	unprov_pcore_list(&p->ksched_data.prov_alloc_me);
-	unprov_pcore_list(&p->ksched_data.prov_not_alloc_me);
+	corerequest_unprov_proc(p);
 	/* Remove from whatever list we are on (if any - might not be on one if it
 	 * was in the middle of __run_mcp_sched) */
 	remove_from_any_list(p);
-	if (nr_cores)
+	if (nr_cores) {
 		__prov_track_dealloc_bulk(p, pc_arr, nr_cores);
+	}
 	spin_unlock(&sched_lock);
 	/* Drop the cradle-to-the-grave reference, jet-li */
 	proc_decref(p);
@@ -831,8 +831,6 @@ static void __prov_track_dealloc_bulk(struct proc *p, uint32_t *pc_arr,
 /* P will get pcore if it needs more cores next time we look at it */
 int provision_core(struct proc *p, uint32_t pcoreid)
 {
-	struct sched_pcore *spc;
-	struct sched_pcore_tailq *prov_list;
 	/* Make sure we aren't asking for something that doesn't exist (bounds check
 	 * on the pcore array) */
 	if (!(pcoreid < num_cores)) {
@@ -844,34 +842,11 @@ int provision_core(struct proc *p, uint32_t pcoreid)
 		set_errno(EBUSY);
 		return -1;
 	}
-	spc = pcoreid2spc(pcoreid);
 	/* Note the sched lock protects the spc tailqs for all procs in this code.
 	 * If we need a finer grained sched lock, this is one place where we could
 	 * have a different lock */
 	spin_lock(&sched_lock);
-	/* If the core is already prov to someone else, take it away.  (last write
-	 * wins, some other layer or new func can handle permissions). */
-	if (spc->prov_proc) {
-		/* the list the spc is on depends on whether it is alloced to the
-		 * prov_proc or not */
-		prov_list = (spc->alloc_proc == spc->prov_proc ?
-		             &spc->prov_proc->ksched_data.prov_alloc_me :
-		             &spc->prov_proc->ksched_data.prov_not_alloc_me);
-		TAILQ_REMOVE(prov_list, spc, prov_next);
-	}
-	/* Now prov it to p.  Again, the list it goes on depends on whether it is
-	 * alloced to p or not.  Callers can also send in 0 to de-provision. */
-	if (p) {
-		if (spc->alloc_proc == p) {
-			TAILQ_INSERT_TAIL(&p->ksched_data.prov_alloc_me, spc, prov_next);
-		} else {
-			/* this is be the victim list, which can be sorted so that we pick
-			 * the right victim (sort by alloc_proc reverse priority, etc). */
-			TAILQ_INSERT_TAIL(&p->ksched_data.prov_not_alloc_me, spc,
-			                  prov_next);
-		}
-	}
-	spc->prov_proc = p;
+	corerequest_prov_core(p, pcoreid);
 	spin_unlock(&sched_lock);
 	return 0;
 }
