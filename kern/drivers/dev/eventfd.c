@@ -160,10 +160,8 @@ static unsigned long efd_read_efd(struct eventfd *efd, struct chan *c)
 	while (1) {
 		old_count = atomic_read(&efd->counter);
 		if (!old_count) {
-			if (c->flag & O_NONBLOCK) {
-				set_errno(EAGAIN);
-				error(EFAIL, "Would block on #%s read", devname());
-			}
+			if (c->flag & O_NONBLOCK)
+				error(EAGAIN, "Would block on #%s read", devname());
 			rendez_sleep(&efd->rv_readers, has_counts, efd);
 		} else {
 			if (efd->flags & EFD_SEMAPHORE) {
@@ -218,10 +216,8 @@ static void efd_write_efd(struct eventfd *efd, unsigned long add_to,
 		old_count = atomic_read(&efd->counter);
 		new_count = old_count + add_to;
 		if (new_count > EFD_MAX_VAL) {
-			if (c->flag & O_NONBLOCK) {
-				set_errno(EAGAIN);
-				error(EFAIL, "Would block on #%s write", devname());
-			}
+			if (c->flag & O_NONBLOCK)
+				error(EAGAIN, "Would block on #%s write", devname());
 			rendez_sleep(&efd->rv_writers, has_room, efd);
 		} else {
 			if (atomic_cas(&efd->counter, old_count, new_count))
@@ -248,10 +244,8 @@ static long efd_write(struct chan *c, void *ubuf, long n, int64_t offset)
 		case Qefd:
 			/* We want to give strtoul a null-terminated buf (can't handle
 			 * arbitrary user strings).  Ignoring the chan offset too. */
-			if (n > sizeof(num64)) {
-				set_errno(EINVAL);
-				error(EFAIL, "attempted to write %d chars, max %d", n, sizeof(num64));
-			}
+			if (n > sizeof(num64))
+				error(EAGAIN, "attempted to write %d chars, max %d", n, sizeof(num64));
 			memcpy(num64, ubuf, n);
 			num64[n] = 0;	/* enforce trailing 0 */
 			write_val = strtoul(num64, 0, 0);
