@@ -5,6 +5,7 @@
 
 #include <setjmp.h>
 #include <syscall.h>
+#include <error.h>
 
 struct errbuf {
 	struct jmpbuf jmpbuf;
@@ -15,14 +16,23 @@ struct errbuf {
 #define waserror() (errpush(errstack, ARRAY_SIZE(errstack), &curindex,         \
                             &prev_errbuf) ||                                   \
                     setjmp(&(get_cur_errbuf()->jmpbuf)))
-#define error(e, x,...) do {set_errstr(x, ##__VA_ARGS__);				\
-							set_errno(e);								\
-							longjmp(&get_cur_errbuf()->jmpbuf, 1);} while(0)
-#define nexterror() do {errpop(errstack, ARRAY_SIZE(errstack), &curindex,      \
-                            prev_errbuf);                                      \
-                     longjmp(&(get_cur_errbuf())->jmpbuf, 1);} while (0)
-#define poperror() do {errpop(errstack, ARRAY_SIZE(errstack), &curindex,       \
-                       prev_errbuf);} while (0)
+#define error(e, x, ...)						\
+	do {										\
+		if (x != NULL)													\
+			set_errstr(x, ##__VA_ARGS__);								\
+		else															\
+			set_errstr(errno_to_string(e));								\
+		set_errno(e);													\
+		longjmp(&get_cur_errbuf()->jmpbuf, 1);							\
+	} while(0)
+#define nexterror() \
+	do {																\
+		errpop(errstack, ARRAY_SIZE(errstack), &curindex,				\
+			   prev_errbuf);											\
+		longjmp(&(get_cur_errbuf())->jmpbuf, 1);						\
+	} while (0)
+#define poperror() errpop(errstack, ARRAY_SIZE(errstack), &curindex,	\
+						  prev_errbuf)
 
 int errpush(struct errbuf *errstack, int stacksize, int *curindex,
             struct errbuf **prev_errbuf);
