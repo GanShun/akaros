@@ -13,9 +13,8 @@ struct errbuf {
 
 #define ERRSTACK(x) struct errbuf *prev_errbuf; struct errbuf errstack[(x)];   \
                     int curindex = 0;
-#define waserror() (errpush(errstack, ARRAY_SIZE(errstack), &curindex,         \
-                            &prev_errbuf) ||                                   \
-                    setjmp(&(get_cur_errbuf()->jmpbuf)))
+#define waserror() setjmp(&(errpush(errstack, ARRAY_SIZE(errstack), &curindex, \
+									&prev_errbuf)->jmpbuf))
 #define error(e, x, ...)						\
 	do {										\
 		if (x != NULL)													\
@@ -25,18 +24,15 @@ struct errbuf {
 		set_errno(e);													\
 		longjmp(&get_cur_errbuf()->jmpbuf, 1);							\
 	} while(0)
-#define nexterror() \
-	do {																\
-		errpop(errstack, ARRAY_SIZE(errstack), &curindex,				\
-			   prev_errbuf);											\
-		longjmp(&(get_cur_errbuf())->jmpbuf, 1);						\
-	} while (0)
+#define nexterror() longjmp(&(errpop(errstack, ARRAY_SIZE(errstack), &curindex, \
+									 prev_errbuf)->jmpbuf), 1)
 #define poperror() errpop(errstack, ARRAY_SIZE(errstack), &curindex,	\
 						  prev_errbuf)
 
-int errpush(struct errbuf *errstack, int stacksize, int *curindex,
-            struct errbuf **prev_errbuf);
-void errpop(struct errbuf *errstack, int stacksize, int *curindex,
-            struct errbuf *prev_errbuf);
+struct errbuf *errpush(struct errbuf *errstack, int stacksize, int *curindex,
+						struct errbuf **prev_errbuf);
+struct errbuf *errpop(struct errbuf *errstack, int stacksize, int *curindex,
+					  struct errbuf *prev_errbuf);
 
 #endif /* ROS_KERN_ERR_H */
+

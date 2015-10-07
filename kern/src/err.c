@@ -28,8 +28,8 @@
  * When we enter, curindex points to the slot we should use.  First time, it is
  * 0, and we'll set cur_eb to slot 0.  When we leave, curindex is set to the
  * next free slot. */
-int errpush(struct errbuf *errstack, int stacksize, int *curindex,
-            struct errbuf **prev_errbuf)
+struct errbuf *errpush(struct errbuf *errstack, int stacksize, int *curindex,
+					   struct errbuf **prev_errbuf)
 {
 	printd("pushe %p %d %dp\n", errstack, stacksize, *curindex);
 	if (*curindex == 0)
@@ -37,9 +37,12 @@ int errpush(struct errbuf *errstack, int stacksize, int *curindex,
 
 	if (*curindex >= stacksize)
 		panic("Error stack overflow");
-	set_cur_errbuf(&errstack[*curindex]);
-	*curindex = *curindex + 1;
-	return 0;
+
+	struct errbuf *cbuf = &errstack[(*curindex)++];
+
+	set_cur_errbuf(cbuf);
+
+	return cbuf;
 }
 
 /* Undo the work of errpush, and advertise the new errbuf used by error() calls.
@@ -50,8 +53,8 @@ int errpush(struct errbuf *errstack, int stacksize, int *curindex,
  * push into if we were pushing.  When we leave, it will be decreased by one,
  * and will still point to the next free errstack (the one we are popping).
  * */
-void errpop(struct errbuf *errstack, int stacksize, int *curindex,
-            struct errbuf *prev_errbuf)
+struct errbuf *errpop(struct errbuf *errstack, int stacksize, int *curindex,
+					  struct errbuf *prev_errbuf)
 {
 	printd("pope %p %d %d\n", errstack, stacksize, *curindex);
 	/* curindex now points to the slot we are popping*/
@@ -62,8 +65,10 @@ void errpop(struct errbuf *errstack, int stacksize, int *curindex,
 	if (*curindex < 0)
 		panic("Error stack underflow");
 
-	if (*curindex == 0)
-		set_cur_errbuf(prev_errbuf);
-	else
-		set_cur_errbuf(&errstack[*curindex - 1]);	/* use the prior slot */
+	struct errbuf *cbuf = (*curindex == 0) ? prev_errbuf: &errstack[*curindex - 1];
+
+	set_cur_errbuf(cbuf);
+
+	return cbuf;
 }
+
