@@ -23,6 +23,8 @@
  * memory.  We can move the PBASE, but we're limited to 32 bit (physical)
  * addresses. */
 #define LAPIC_PBASE					0xfee00000	/* default *physical* address */
+//#undef LAPIC_BASE
+//#define LAPIC_BASE 0
 #define LAPIC_EOI					(LAPIC_BASE + 0x0b0)
 #define LAPIC_SPURIOUS				(LAPIC_BASE + 0x0f0)
 #define LAPIC_VERSION				(LAPIC_BASE + 0x030)
@@ -77,6 +79,8 @@ void lapic_set_timer(uint32_t usec, bool periodic);
 uint32_t lapic_get_default_id(void);
 int apiconline(void);
 void handle_lapic_error(struct hw_trapframe *hw_tf, void *data);
+uint32_t apicrget(uint64_t r);
+void apicrput(uint64_t r, uint32_t data);
 
 static inline void lapic_send_eoi(int unused);
 static inline uint32_t lapic_get_version(void);
@@ -100,49 +104,50 @@ static inline void __send_nmi(uint8_t hw_coreid);
 
 /* XXX: remove these */
 #define mask_lapic_lvt(entry) \
-	write_mmreg32(entry, read_mmreg32(entry) | LAPIC_LVT_MASK)
+	apicrput(entry, apicrget(entry) | LAPIC_LVT_MASK)
 #define unmask_lapic_lvt(entry) \
-	write_mmreg32(entry, read_mmreg32(entry) & ~LAPIC_LVT_MASK)
+	apicrput(entry, apicrget(entry) & ~LAPIC_LVT_MASK)
 
 static inline void lapic_send_eoi(int unused)
 {
-	write_mmreg32(LAPIC_EOI, 0);
+	apicrput(LAPIC_EOI, 0);
 }
 
 static inline uint32_t lapic_get_version(void)
 {
-	return read_mmreg32(LAPIC_VERSION);
+	return apicrget(LAPIC_VERSION);
 }
 
 static inline uint32_t lapic_get_error(void)
 {
-	write_mmreg32(LAPIC_ERROR, 0xdeadbeef);
-	return read_mmreg32(LAPIC_ERROR);
+	apicrput(LAPIC_ERROR, 0xdeadbeef);
+	return apicrget(LAPIC_ERROR);
 }
 
 static inline uint32_t lapic_get_id(void)
 {
-	return read_mmreg32(LAPIC_ID) >> 24;
+	//return apicrget(LAPIC_ID) >> 24;
+	return apicrget(LAPIC_ID);
 }
 
 static inline void lapic_set_id(uint8_t id)
 {
-	write_mmreg32(LAPIC_ID, id << 24);
+	apicrput(LAPIC_ID, id << 24);
 }
 
 static inline uint8_t lapic_get_logid(void)
 {
-	return read_mmreg32(LAPIC_LOGICAL_ID) >> 24;
+	return apicrget(LAPIC_LOGICAL_ID) >> 24;
 }
 
 static inline void lapic_set_logid(uint8_t id)
 {
-	write_mmreg32(LAPIC_LOGICAL_ID, id << 24);
+	apicrput(LAPIC_LOGICAL_ID, id << 24);
 }
 
 static inline void lapic_disable_timer(void)
 {
-	write_mmreg32(LAPIC_LVT_TIMER, 0);
+	apicrput(LAPIC_LVT_TIMER, 0);
 }
 
 /* There are a couple ways to do it.  The MSR route doesn't seem to work
@@ -150,7 +155,7 @@ static inline void lapic_disable_timer(void)
  */
 static inline void lapic_disable(void)
 {
-	write_mmreg32(LAPIC_SPURIOUS, read_mmreg32(LAPIC_SPURIOUS) & 0xffffefff);
+	apicrput(LAPIC_SPURIOUS, apicrget(LAPIC_SPURIOUS) & 0xffffefff);
 	//write_msr(IA32_APIC_BASE, read_msr(IA32_APIC_BASE) & ~MSR_APIC_ENABLE);
 }
 
@@ -159,56 +164,59 @@ static inline void lapic_disable(void)
  */
 static inline void lapic_wait_to_send(void)
 {
-	while (read_mmreg32(LAPIC_IPI_ICR_LOWER) & 0x1000)
+	// we should not need this function as we are now using x2apic.
+	return;
+
+	while (apicrget(LAPIC_IPI_ICR_LOWER) & 0x1000)
 		__cpu_relax();
 }
 
 static inline void lapic_enable(void)
 {
-	write_mmreg32(LAPIC_SPURIOUS, read_mmreg32(LAPIC_SPURIOUS) | 0x00000100);
+	apicrput(LAPIC_SPURIOUS, apicrget(LAPIC_SPURIOUS) | 0x00000100);
 }
 
 static inline void send_init_ipi(void)
 {
-	write_mmreg32(LAPIC_IPI_ICR_LOWER, 0x000c4500);
+	apicrput(LAPIC_IPI_ICR_LOWER, 0x000c4500);
 	lapic_wait_to_send();
 }
 
 static inline void send_startup_ipi(uint8_t vector)
 {
-	write_mmreg32(LAPIC_IPI_ICR_LOWER, 0x000c4600 | vector);
+	apicrput(LAPIC_IPI_ICR_LOWER, 0x000c4600 | vector);
 	lapic_wait_to_send();
 }
 
 static inline void send_self_ipi(uint8_t vector)
 {
-	write_mmreg32(LAPIC_IPI_ICR_LOWER, 0x00044000 | vector);
+	apicrput(LAPIC_IPI_ICR_LOWER, 0x00044000 | vector);
 	lapic_wait_to_send();
 }
 
 static inline void send_broadcast_ipi(uint8_t vector)
 {
-	write_mmreg32(LAPIC_IPI_ICR_LOWER, 0x00084000 | vector);
+	apicrput(LAPIC_IPI_ICR_LOWER, 0x00084000 | vector);
 	lapic_wait_to_send();
 }
 
 static inline void send_all_others_ipi(uint8_t vector)
 {
-	write_mmreg32(LAPIC_IPI_ICR_LOWER, 0x000c4000 | vector);
+	apicrput(LAPIC_IPI_ICR_LOWER, 0x000c4000 | vector);
 	lapic_wait_to_send();
 }
 
 static inline void __send_ipi(uint8_t hw_coreid, uint8_t vector)
 {
-	write_mmreg32(LAPIC_IPI_ICR_UPPER, hw_coreid << 24);
-	write_mmreg32(LAPIC_IPI_ICR_LOWER, 0x00004000 | vector);
+	apicrput(LAPIC_IPI_ICR_UPPER, hw_coreid << 24);
+	apicrput(LAPIC_IPI_ICR_LOWER, 0x00004000 | vector);
 	lapic_wait_to_send();
 }
 
 static inline void send_group_ipi(uint8_t hw_groupid, uint8_t vector)
 {
-	write_mmreg32(LAPIC_IPI_ICR_UPPER, hw_groupid << 24);
-	write_mmreg32(LAPIC_IPI_ICR_LOWER, 0x00004800 | vector);
+	apicrput(LAPIC_IPI_ICR_UPPER, hw_groupid << 24);
+	apicrput(LAPIC_IPI_ICR_LOWER, 0x00004800 | vector);
 	lapic_wait_to_send();
 }
 
@@ -216,8 +224,8 @@ static inline void __send_nmi(uint8_t hw_coreid)
 {
 	if (hw_coreid == 255)
 		return;
-	write_mmreg32(LAPIC_IPI_ICR_UPPER, hw_coreid << 24);
-	write_mmreg32(LAPIC_IPI_ICR_LOWER, 0x00004400);
+	apicrput(LAPIC_IPI_ICR_UPPER, hw_coreid << 24);
+	apicrput(LAPIC_IPI_ICR_LOWER, 0x00004400);
 	lapic_wait_to_send();
 }
 

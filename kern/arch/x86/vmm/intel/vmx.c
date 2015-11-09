@@ -557,16 +557,18 @@ static const struct vmxec cb2ec = {
 	.truemsr = MSR_IA32_VMX_PROCBASED_CTLS2,
 
 	.must_be_1 = (SECONDARY_EXEC_ENABLE_EPT |
-		     SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
+		     //SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 		     SECONDARY_EXEC_APIC_REGISTER_VIRT |
 		     SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
+		     SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
 		     SECONDARY_EXEC_WBINVD_EXITING),
 
 	.must_be_0 = (
 		     //SECONDARY_EXEC_APIC_REGISTER_VIRT |
 		     //SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
 		     SECONDARY_EXEC_DESCRIPTOR_EXITING |
-		     SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
+		     //SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
+		     SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 		     SECONDARY_EXEC_ENABLE_VPID |
 		     SECONDARY_EXEC_UNRESTRICTED_GUEST |
 		     SECONDARY_EXEC_PAUSE_LOOP_EXITING |
@@ -2222,6 +2224,9 @@ int intel_vmm_init(void) {
 	/* FIXME: do we need APIC virtualization (flexpriority?) */
 
 	memset(msr_bitmap, 0xff, PAGE_SIZE);
+	memset((void *)msr_bitmap+0x100, 0x0, 0x100/8);
+	memset((void *)msr_bitmap+0x100+2048, 0x0, 0x100/8);
+
 	memset(io_bitmap, 0xff, VMX_IO_BITMAP_SZ);
 
 	/* These are the only MSRs that are not autoloaded and not intercepted */

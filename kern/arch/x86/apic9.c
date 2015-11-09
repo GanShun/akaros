@@ -111,33 +111,76 @@ enum {							/* Tdc */
 	DivX1 = 0x0000000b,	/* Divide by 1 */
 };
 
+enum {
+	X2APICBase = 0x800
+};
+
 static uintptr_t apicbase;
 static int apmachno = 1;
 
 struct apic xlapic[Napic];
 
-static uint32_t apicrget(int r)
+uint32_t apicrget(uint64_t r)
 {
+	//printk("APICRGET BEFORE SUBTRACTION: %llx\n", r);
+	if (r >= 0x400) {
+		r = r - LAPIC_BASE;
+	//	printk("APICRGET AFTER SUBTRACTION: %llx\n", r);
+	}
 	uint32_t val;
 	if (!apicbase)
 		panic("apicrget: no apic");
-	val = read_mmreg32(apicbase + r);
+	if (r == 0x310)
+		val = (read_msr(X2APICBase + 0x300/16) >> 32);
+	else
+		val = read_msr(X2APICBase + r/16);
 	printd("apicrget: %s returns %p\n", apicregnames[r], val);
+	if (r == 0x20)
+		printk("APIC ID: 0x%llx\n", val);
 	return val;
 }
 
-static void apicrput(int r, uint32_t data)
+void apicrput(uint64_t r, uint32_t data)
 {
+	uint64_t temp_data = 0;
+
+	//printk("APICRPUT BEFORE SUBTRACTION: %llx\n", r);
+	if (r >= 0x400) {
+		r = r - LAPIC_BASE;
+	//	printk("APICRPUT AFTER SUBTRACTION: %llx\n", r);
+	}
 	if (!apicbase)
 		panic("apicrput: no apic");
+	if (r == 0x20)
+		printk("WRITING TO ID");
+	if (r == 0xe0) {
+		printd("Ignoring DFR at offset 80e in X2APIC mode");
+		return;
+	}
+	if (r == 0xd0) {
+		printd("Ignoring read only register at offset 0x%02x in X2APIC mode",
+		       r);
+		return;
+	}
 	printd("apicrput: %s = %p\n", apicregnames[r], data);
-	write_mmreg32(apicbase + r, data);
+	if (r == 0x310) {
+		temp_data = read_msr(X2APICBase + 0x300/16);
+		temp_data &= 0xFFFFFFFF;
+		temp_data |= (uint64_t)data << 32;
+	} else if (r == 0x300) {
+		//temp_data = read_msr(X2APICBase + 0x300/16);
+		//temp_data &= ~0xFFFFFFFF;
+		temp_data = 0xFFFFFFFF00000000ULL;
+		temp_data |= data;
+	} else
+		temp_data |= data;
+	write_msr(X2APICBase + r/16, temp_data);
 }
 
 void apicinit(int apicno, uintptr_t pa, int isbp)
 {
 	struct apic *apic;
-
+	uint64_t msr_val;
 	/*
 	 * Mark the APIC useable if it has a good ID
 	 * and the registers can be mapped.
@@ -163,6 +206,12 @@ void apicinit(int apicno, uintptr_t pa, int isbp)
 		pcpui->apicno = apicno; // acpino is the hw_coreid
 		apic->machno = apmachno++; // machno is the os_coreid
 	 * akaros does its own remapping of hw <-> os coreid during smp_boot */
+	//X2APIC INIT
+
+	//printk("BEFORE X2APIC");
+	msr_val = read_msr(IA32_APIC_BASE);
+	write_msr(IA32_APIC_BASE, msr_val | (3<<10));
+	//printk("AFTER X2APIC");
 }
 
 static char *apicdump0(char *start, char *end, struct apic *apic, int i)
@@ -214,15 +263,27 @@ int apiconline(void)
 	uint64_t tsc;
 	uint32_t dfr, ver;
 	int apicno, nlvt;
+	uint64_t msr_val;
 
+	//X2APIC INIT
+
+	//printk("BEFORE X2APIC");
+	msr_val = read_msr(IA32_APIC_BASE);
+	write_msr(IA32_APIC_BASE, msr_val | (3<<10));
+	//printk("AFTER X2APIC");
+	//printk("APIC ID: %d", apicrget(Id));
 	if (!apicbase) {
 		printk("No apicbase on HW core %d!!\n", hw_core_id());
 		return 0;
 	}
-	if ((apicno = ((apicrget(Id) >> 24) & 0xff)) >= Napic) {
+	apicno = (apicrget(Id) & 0xff);
+	if (apicno >= Napic) {
+		printk("APIC ID: 0x%llx\n", apicrget(Id));
+		printk("APIC NO: 0x%llx\n", apicno);
 		printk("Bad apicno %d on HW core %d!!\n", apicno, hw_core_id());
 		return 0;
 	}
+	//printk("APIC ID: %d", apicno);
 	apic = &xlapic[apicno];
 	/* The addr check tells us if it is an IOAPIC or not... */
 	if (!apic->useable || apic->addr) {

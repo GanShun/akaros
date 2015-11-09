@@ -156,6 +156,7 @@ void smp_boot(void)
 	*/
 	udelay(500000);
 
+	printk("I DIDN'T STALL HERE");
 	// Each core will also increment smp_semaphore, and decrement when it is done,
 	// all in smp_entry.  It's purpose is to keep Core0 from competing for the
 	// smp_boot_lock.  So long as one AP increments the sem before the final
@@ -163,6 +164,7 @@ void smp_boot(void)
 	while (*get_smp_semaphore())
 		cpu_relax();
 
+	printk("I DIDN'T STALL HERE the sequel");
 	// From here on, no other cores are coming up.  Grab the lock to ensure it.
 	// Another core could be in it's prelock phase and be trying to grab the lock
 	// forever....
@@ -258,11 +260,13 @@ uintptr_t smp_main(void)
 
 	// Loads the same IDT used by the other cores
 	asm volatile("lidt %0" : : "m"(idt_pd));
+	//printk("TESTING\n");
 
 	apiconline();
 
+	//printk("TESTING\n");
 	// set a default logical id for now
-	lapic_set_logid(lapic_get_id());
+	//lapic_set_logid(lapic_get_id());
 
 	return my_stack_top; // will be loaded in smp_entry.S
 }

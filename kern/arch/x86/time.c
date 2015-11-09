@@ -32,9 +32,9 @@ void timer_init(void){
 	                  LAPIC_TIMER_DIVISOR_BITS);
 	// Mask the LAPIC Timer, so we never receive this interrupt (minor race)
 	mask_lapic_lvt(LAPIC_LVT_TIMER);
-	timercount[0] = read_mmreg32(LAPIC_TIMER_CURRENT);
+	timercount[0] = apicrget(LAPIC_TIMER_CURRENT);
 	udelay_pit(1000000);
-	timercount[1] = read_mmreg32(LAPIC_TIMER_CURRENT);
+	timercount[1] = apicrget(LAPIC_TIMER_CURRENT);
 	system_timing.bus_freq = (timercount[0] - timercount[1])
 	                         * LAPIC_TIMER_DIVISOR_VAL;
 	/* The time base for the timer is derived from the processor's bus clock,

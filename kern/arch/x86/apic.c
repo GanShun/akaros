@@ -15,6 +15,8 @@
 #include <bitmask.h>
 #include <arch/topology.h>
 
+//uint32_t apicrget(uint64_t r);
+//void apicrput(uint64_t r, uint32_t data);
 bool lapic_check_spurious(int trap_nr)
 {
 	/* FYI: lapic_spurious is 255 on qemu and 15 on the nehalem..  We actually
@@ -25,7 +27,7 @@ bool lapic_check_spurious(int trap_nr)
 	 * or IOAPIC RTE), since the handlers don't send an EOI.  However, our check
 	 * here allows us to use the vector since we can tell the diff btw a
 	 * spurious and a real IRQ. */
-	assert(IdtLAPIC_SPURIOUS == (read_mmreg32(LAPIC_SPURIOUS) & 0xff));
+	assert(IdtLAPIC_SPURIOUS == (apicrget(LAPIC_SPURIOUS) & 0xff));
 	/* Note the lapic's vectors are not shifted by an offset. */
 	if ((trap_nr == IdtLAPIC_SPURIOUS) &&
 	     !lapic_get_isr_bit(IdtLAPIC_SPURIOUS)) {
@@ -45,11 +47,11 @@ void lapic_print_isr(void)
 	printk("LAPIC ISR on core %d\n--------------\n", core_id());
 	for (int i = 7; i >= 0; i--)
 		printk("%3d-%3d: %p\n", (i + 1) * 32 - 1, i * 32,
-		       *(uint32_t*)(LAPIC_ISR + i * 0x10));
+			apicrget(LAPIC_ISR + i * 0x10));
 	printk("LAPIC IRR on core %d\n--------------\n", core_id());
 	for (int i = 7; i >= 0; i--)
 		printk("%3d-%3d: %p\n", (i + 1) * 32 - 1, i * 32,
-		       *(uint32_t*)(LAPIC_IRR + i * 0x10));
+			apicrget(LAPIC_IRR + i * 0x10));
 }
 
 /* Returns TRUE if the bit 'vector' is set in the LAPIC ISR or IRR (whatever you
@@ -59,7 +61,7 @@ static bool __lapic_get_isrr_bit(unsigned long base, uint8_t vector)
 {
 	int which_reg = vector >> 5;	/* 32 bits per reg */
 	uintptr_t lapic_reg = base + which_reg * 0x10;	/* offset 16 */
-	return (read_mmreg32(lapic_reg) & (1 << (vector % 32)) ? 1 : 0);
+	return (apicrget(lapic_reg) & (1 << (vector % 32)) ? 1 : 0);
 }
 
 bool lapic_get_isr_bit(uint8_t vector)
@@ -80,7 +82,7 @@ void lapic_mask_irq(struct irq_handler *unused, int apic_vector)
 		return;
 	}
 	mm_reg = LAPIC_BASE + (apic_vector - IdtLAPIC) * 0x10;
-	write_mmreg32(mm_reg, read_mmreg32(mm_reg) | LAPIC_LVT_MASK);
+	apicrput(mm_reg, apicrget(mm_reg) | LAPIC_LVT_MASK);
 }
 
 void lapic_unmask_irq(struct irq_handler *unused, int apic_vector)
@@ -91,7 +93,7 @@ void lapic_unmask_irq(struct irq_handler *unused, int apic_vector)
 		return;
 	}
 	mm_reg = LAPIC_BASE + 0x320 + (apic_vector - IdtLAPIC) * 0x10;
-	write_mmreg32(mm_reg, read_mmreg32(mm_reg) & ~LAPIC_LVT_MASK);
+	apicrput(mm_reg, apicrget(mm_reg) & ~LAPIC_LVT_MASK);
 }
 
 /* This works for any interrupt that goes through the LAPIC, but not things like
@@ -119,15 +121,15 @@ void __lapic_set_timer(uint32_t ticks, uint8_t vec, bool periodic, uint8_t div)
 	periodic = TRUE;
 #endif
 	// clears bottom bit and then set divider
-	write_mmreg32(LAPIC_TIMER_DIVIDE, (read_mmreg32(LAPIC_TIMER_DIVIDE) &~0xf) |
+	apicrput(LAPIC_TIMER_DIVIDE, (apicrget(LAPIC_TIMER_DIVIDE) & ~0xf) |
 	              (div & 0xf));
 	// set LVT with interrupt handling information.  also unmasks.
-	write_mmreg32(LAPIC_LVT_TIMER, vec | (periodic << 17));
-	write_mmreg32(LAPIC_TIMER_INIT, ticks);
+	apicrput(LAPIC_LVT_TIMER, vec | (periodic << 17));
+	apicrput(LAPIC_TIMER_INIT, ticks);
 	// For debugging when we expand this
-	//cprintf("LAPIC LVT Timer: 0x%08x\n", read_mmreg32(LAPIC_LVT_TIMER));
-	//cprintf("LAPIC Init Count: 0x%08x\n", read_mmreg32(LAPIC_TIMER_INIT));
-	//cprintf("LAPIC Current Count: 0x%08x\n", read_mmreg32(LAPIC_TIMER_CURRENT));
+	//cprintf("LAPIC LVT Timer: 0x%08x\n", apicrget(LAPIC_LVT_TIMER));
+	//cprintf("LAPIC Init Count: 0x%08x\n", apicrget(LAPIC_TIMER_INIT));
+	//cprintf("LAPIC Current Count: 0x%08x\n", apicrget(LAPIC_TIMER_CURRENT));
 }
 
 void lapic_set_timer(uint32_t usec, bool periodic)

@@ -86,6 +86,15 @@ struct acpi_madt_local_apic Apic0 = {.header = {.type = ACPI_MADT_TYPE_LOCAL_API
 				     .processor_id = 0, .id = 0};
 struct acpi_madt_io_apic Apic1 = {.header = {.type = ACPI_MADT_TYPE_IO_APIC, .length = sizeof(struct acpi_madt_io_apic)},
 				  .id = 1, .address = 0xfec00000, .global_irq_base = 0};
+struct acpi_madt_local_x2apic X2Apic0 = {
+	.header = {
+		.type = ACPI_MADT_TYPE_LOCAL_X2APIC,
+		.length = sizeof(struct acpi_madt_local_x2apic)
+	},
+	.local_apic_id = 0,
+	.uid = 0
+};
+
 struct acpi_madt_interrupt_override isor[] = {
 	/* I have no idea if it should be source irq 2, global 0, or global 2, source 0. Shit. */
 	{.header = {.type = ACPI_MADT_TYPE_INTERRUPT_OVERRIDE, .length = sizeof(struct acpi_madt_interrupt_override)},
@@ -456,8 +465,8 @@ int main(int argc, char **argv)
 	}
 
 	memset(a_page, 0, 4096);
-	//((uint32_t *)a_page)[0x30/4] = 0x01060015;
-	((uint32_t *)a_page)[0x30/4] = 0xDEADBEEF;
+	((uint32_t *)a_page)[0x30/4] = 0x01060015;
+	//((uint32_t *)a_page)[0x30/4] = 0xDEADBEEF;
 
 
 	if (fd < 0) {
@@ -582,6 +591,8 @@ int main(int argc, char **argv)
 	a += sizeof(Apic0);
 	memmove(a, &Apic1, sizeof(Apic1));
 	a += sizeof(Apic1);
+	memmove(a, &X2Apic0, sizeof(X2Apic0));
+	a += sizeof(X2Apic0);
 	memmove(a, &isor, sizeof(isor));
 	a += sizeof(isor);
 	m->header.length = a - (void *)m;
