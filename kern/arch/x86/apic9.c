@@ -13,6 +13,7 @@
 #include <ip.h>
 #include <arch/io.h>
 #include <trap.h>
+#include <arch/iommu.h>
 
 enum {							/* Local APIC registers */
 	Id = 0x0020,				/* Identification */
@@ -206,6 +207,10 @@ void apicinit(int apicno, uintptr_t pa, int isbp)
 		pcpui->apicno = apicno; // acpino is the hw_coreid
 		apic->machno = apmachno++; // machno is the os_coreid
 	 * akaros does its own remapping of hw <-> os coreid during smp_boot */
+
+	//IOMMU INIT
+	init_iommu();
+
 	//X2APIC INIT
 
 	//printk("BEFORE X2APIC");

@@ -18,6 +18,7 @@
 #include <kmalloc.h>
 #include <ex_table.h>
 #include <arch/mptables.h>
+#include <arch/iommu.h>
 
 taskstate_t ts;
 
@@ -495,8 +496,11 @@ static bool vector_is_irq(int apic_vec)
  * are all mapped up at PIC1_OFFSET for the cpu / irq_handler. */
 void handle_irq(struct hw_trapframe *hw_tf)
 {
+	//outb(0x3f8, '!');
 	if (hw_tf->tf_trapno != 240)
 		printk("IRQ on :%d\n", hw_tf->tf_trapno);
+	print_fault_regs();
+	//monitor(0);
 	struct per_cpu_info *pcpui = &per_cpu_info[core_id()];
 	struct irq_handler *irq_h;
 	/* Copy out the TF for now */

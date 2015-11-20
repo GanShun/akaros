@@ -305,10 +305,12 @@ static int mpparse(PCMP * pcmp, int maxcores)
 				 * For PCI devices, this field's lowest two bits are INT#A == 0,
 				 * INT#B == 1, etc.  Bits 2-6 are the PCI device number.
 				 */
+
 				devno = p[5];
 				if (memcmp(mpbus[p[4]]->type, "PCI   ", 6) != 0)
 					devno <<= 2;
-				ioapicintrinit(p[4], p[6], p[7], devno, lo);
+				printk("IOAPIC NO: %d\n", p[6]);
+				ioapicintrinit(p[4], p[6], p[7], devno, lo, 0);
 
 				p += 8;
 				break;
