@@ -43,14 +43,25 @@ void init_iommu(void)
 		num_fault_regs = ((capability >> 40) & 0xff) + 1;
 		printk("NUM_FAULT_REGS: 0x%llx\n", num_fault_regs);
 
+		// Read version.
+
+		version = get_iommu_reg32(IOMMU_VERSION_REG_OFFSET);
+		printk("IOMMU VERSION: %ld\n", version);
+
+		// Remapping entry for IRQ 4 from IOAPIC
+		init_irte(4, 0, 49, DELIVERY_MODE_EXT_INT);
+		init_irte(1, 0, 50, DELIVERY_MODE_FIXED);
+		//for (i = 0; i < 65536; i++)
+		//	init_irte(i, 0, 49, DELIVERY_MODE_LOWEST_PRIORITY);
+
+		printk("IRTE ENTRY LOW: 0x%llx\n", irtep[4*2]);
+		printk("IRTE ENTRY HIGH: 0x%llx\n", irtep[4*2+1]);
+
 		// Set up Interrupt Remapping Pointer
 		set_iommu_reg64(IRTE_BASE_REG_OFFSET, irtar);
 
 		// Set command bit.
 		set_gcr(SET_INTERRUPT_REMAP_TABLE_PTR);
-
-		status = get_gsr();
-		printk("STATUS AFTER SET_PTR: 0x%lx\n", status);
 
 		// Initialize Interrupt Remapping
 		status = get_gsr();
@@ -59,20 +70,6 @@ void init_iommu(void)
 		set_gcr(INTERRUPT_REMAPPING_ENABLE);
 		status = get_gsr();
 		printk("STATUS AFTER ENABLE: 0x%lx\n", status);
-
-		// Read version.
-
-		version = get_iommu_reg32(IOMMU_VERSION_REG_OFFSET);
-		printk("IOMMU VERSION: %ld\n", version);
-
-		// Remapping entry for IRQ 4 from IOAPIC
-		//init_irte(4, 0, 49, DELIVERY_MODE_LOWEST_PRIORITY);
-		//init_irte(1, 0, 50, DELIVERY_MODE_LOWEST_PRIORITY);
-		//for (i = 0; i < 65536; i++)
-		//	init_irte(i, 0, 49, DELIVERY_MODE_LOWEST_PRIORITY);
-
-		printk("IRTE ENTRY LOW: 0x%llx\n", irtep[4*2]);
-		printk("IRTE ENTRY HIGH: 0x%llx\n", irtep[4*2+1]);
 
 		print_fault_regs();
 
@@ -100,10 +97,14 @@ void init_irte(uint16_t irte_index, uint32_t dest_id, uint8_t vector,
 	irtep[irte_index*2] = 0;
 
 	irtep[irte_index*2] = PRESENT |
-	                      TRIGGER_MODE |
+	                      //TRIGGER_MODE |
+	                      //DESTINATION_MODE |
+	                      //REDIRECTION_HINT |
 	                      delivery_mode << 5 |
 	                      vector << 16 |
 	                      (uint64_t)dest_id << 32;
+
+	irtep[irte_index*2+1] = 0x4f0ff;
 
 }
 

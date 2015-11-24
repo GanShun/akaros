@@ -124,6 +124,7 @@ void manager_brho(void)
 		#warning "***** ctrl-g untested on riscv, check k/a/r/trap.c *****"
 		#endif
 		first = FALSE;
+		monitor(0);
 	}
 	/* just idle, and deal with things via interrupts.  or via face. */
 	smp_idle();

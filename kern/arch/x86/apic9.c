@@ -136,8 +136,10 @@ uint32_t apicrget(uint64_t r)
 	else
 		val = read_msr(X2APICBase + r/16);
 	printd("apicrget: %s returns %p\n", apicregnames[r], val);
-	if (r == 0x20)
-		printk("APIC ID: 0x%llx\n", val);
+	if (r == 0x20) {
+		printk("APIC ID: 0x%lx\n", val);
+		printk("APIC LOGICAL ID: 0x%lx\n", apicrget(0xd0));
+	}
 	return val;
 }
 

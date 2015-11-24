@@ -493,6 +493,7 @@ static void ioapic_mask_irq(struct irq_handler *unused, int apic_vector)
 {
 	/* could store the rdt in the irq_h */
 	struct Rdt *rdt = ioapic_vector2rdt(apic_vector);
+	printk("MASKING VECTOR: %d\n", apic_vector);
 	if (!rdt)
 		return;
 	spin_lock(&rdt->apic->lock);
@@ -509,6 +510,7 @@ static void ioapic_mask_irq(struct irq_handler *unused, int apic_vector)
 static void ioapic_unmask_irq(struct irq_handler *unused, int apic_vector)
 {
 	struct Rdt *rdt = ioapic_vector2rdt(apic_vector);
+	printk("UNMASKING VECTOR: %d\n", apic_vector);
 	if (!rdt)
 		return;
 	spin_lock(&rdt->apic->lock);
@@ -654,8 +656,9 @@ int bus_irq_setup(struct irq_handler *irq_h)
 	//rdt->hi = 4 << (49-32) | 1 << (48-32);
 	rdt->lo |= Pm | MTf;
 	if (irq_h->dev_irq == 4) {
+		printk("RDTLOW: 0x%lx\n", rdt->lo);
 		rdt->hi = 4 << (49-32) | 1 << (48-32);
-		rdt->lo |= (1 << 15);
+		rdt->lo &= ~(1 << 16); // unmask
 		printk("IRQ 4!!!!\n");
 	}
 	rtblput(rdt->apic, rdt->intin, rdt->hi, rdt->lo);
