@@ -121,6 +121,32 @@ static int apmachno = 1;
 
 struct apic xlapic[Napic];
 
+static void __apic_ir_dump(uint64_t r);
+
+static void __apic_ir_dump(uint64_t r)
+{
+	int i;
+	uint32_t val;
+
+	for (i = 0x10; i < 0x80; i += 0x10) {
+		val = apicrget(r+i);
+		if (val) {
+			printk("Register at range (%d,%d]: 0x%08x\n", (i*2+32),
+			       i*2, val);
+		}
+	}
+}
+void apic_isr_dump(void)
+{
+	printk("ISR DUMP\n");
+	__apic_ir_dump(0x100);
+}
+void apic_irr_dump(void)
+{
+	printk("IRR DUMP\n");
+	__apic_ir_dump(0x200);
+}
+
 uint32_t apicrget(uint64_t r)
 {
 	//printk("APICRGET BEFORE SUBTRACTION: %llx\n", r);
@@ -218,6 +244,8 @@ void apicinit(int apicno, uintptr_t pa, int isbp)
 	//printk("BEFORE X2APIC");
 	msr_val = read_msr(IA32_APIC_BASE);
 	write_msr(IA32_APIC_BASE, msr_val | (3<<10));
+	//printk("INIT APIC ID: 0x%lx\n", apicrget(0x20));
+	//printk("INIT APIC LOGICAL ID: 0x%lx\n", apicrget(0xD0));
 	//printk("AFTER X2APIC");
 }
 

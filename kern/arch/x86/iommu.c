@@ -49,7 +49,7 @@ void init_iommu(void)
 		printk("IOMMU VERSION: %ld\n", version);
 
 		// Remapping entry for IRQ 4 from IOAPIC
-		init_irte(4, 0, 49, DELIVERY_MODE_EXT_INT);
+		init_irte(4, 0, 49, DELIVERY_MODE_FIXED);
 		init_irte(1, 0, 50, DELIVERY_MODE_FIXED);
 		//for (i = 0; i < 65536; i++)
 		//	init_irte(i, 0, 49, DELIVERY_MODE_LOWEST_PRIORITY);

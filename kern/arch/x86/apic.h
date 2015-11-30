@@ -81,6 +81,8 @@ int apiconline(void);
 void handle_lapic_error(struct hw_trapframe *hw_tf, void *data);
 uint32_t apicrget(uint64_t r);
 void apicrput(uint64_t r, uint32_t data);
+void apic_isr_dump(void);
+void apic_irr_dump(void);
 
 static inline void lapic_send_eoi(int unused);
 static inline uint32_t lapic_get_version(void);

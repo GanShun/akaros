@@ -501,8 +501,27 @@ void handle_irq(struct hw_trapframe *hw_tf)
 		outb(0x3f8, '!');
 		printk("IRQ on :%d\n", hw_tf->tf_trapno);
 	}
-	print_fault_regs();
+	uint32_t apic_esr;
+
+	apic_esr = apicrget(0x280);
+	if (apic_esr) {
+		printk("APIC ESR SET: 0x%lx\n", apic_esr);
+		apicrget(0x20);
+		apicrput(0x280, 0);
+		//panic("APIC ERROR");
+	}
+	//apic_isr_dump();
+	//apic_irr_dump();
+	//print_fault_regs();
 	//monitor(0);
+
+	//TEMPORARY HACK TO EOI THE I_POKE_CORE IRQ
+	if (hw_tf->tf_trapno == I_POKE_CORE) {
+		// Send eoi
+		apicrput(0xB0, 0);
+		return;
+	}
+
 	struct per_cpu_info *pcpui = &per_cpu_info[core_id()];
 	struct irq_handler *irq_h;
 	/* Copy out the TF for now */
