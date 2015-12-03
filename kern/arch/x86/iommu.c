@@ -30,7 +30,6 @@ void init_iommu(void)
 		printk("IOMMU IRTAR : 0x%llx\n", irtar);
 
 		// Write it to the Interrupt Remapping Table Address Register
-		// when we finally know how to.
 
 		capability = get_iommu_reg64(CAPABILITY_REG_OFFSET);
 		printk("CAPABILITY: 0x%llx\n", capability);
@@ -47,15 +46,6 @@ void init_iommu(void)
 
 		version = get_iommu_reg32(IOMMU_VERSION_REG_OFFSET);
 		printk("IOMMU VERSION: %ld\n", version);
-
-		// Remapping entry for IRQ 4 from IOAPIC
-		init_irte(4, 0, 49, DELIVERY_MODE_FIXED);
-		init_irte(1, 0, 50, DELIVERY_MODE_FIXED);
-		//for (i = 0; i < 65536; i++)
-		//	init_irte(i, 0, 49, DELIVERY_MODE_LOWEST_PRIORITY);
-
-		printk("IRTE ENTRY LOW: 0x%llx\n", irtep[4*2]);
-		printk("IRTE ENTRY HIGH: 0x%llx\n", irtep[4*2+1]);
 
 		// Set up Interrupt Remapping Pointer
 		set_iommu_reg64(IRTE_BASE_REG_OFFSET, irtar);
@@ -76,15 +66,12 @@ void init_iommu(void)
 	} else if (irtep == NULL) {
 		panic("Failed to allocate interrupt remapping table pages!");
 	} else {
-		//printk("IRTE ENTRY LOW: 0x%llx\n", irtep[4*2]);
-		//printk("IRTE ENTRY HIGH: 0x%llx\n", irtep[4*2+1]);
+
 	}
 }
 
 void init_irte(uint16_t irte_index, uint32_t dest_id, uint8_t vector,
                uint8_t delivery_mode) {
-	//printk("IRTE PREVIOUS VALUE LOW: %llx\n", irtep[irte_index*2]);
-	//printk("IRTE PREVIOUS VALUE HIGH: %llx\n", irtep[irte_index*2+1]);
 	if (irtep[irte_index*2] & PRESENT)
 		panic("TRIED TO ALLOCATE ALREADY PRESENT IRTE");
 
@@ -101,10 +88,13 @@ void init_irte(uint16_t irte_index, uint32_t dest_id, uint8_t vector,
 	                      //DESTINATION_MODE |
 	                      //REDIRECTION_HINT |
 	                      delivery_mode << 5 |
-	                      vector << 16 |
+	                      (uint64_t)vector << 16 |
 	                      (uint64_t)dest_id << 32;
 
-	irtep[irte_index*2+1] = 0x4f0ff;
+	irtep[irte_index*2+1] = SOURCE_ID(0xf0ff) |
+	                        SOURCE_ID_QUAL_ALL |
+	                        SOURCE_VALIDATION_ON;
+	//irtep[irte_index*2+1] = 0x4f0ff;
 
 }
 

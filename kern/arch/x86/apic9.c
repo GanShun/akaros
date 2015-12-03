@@ -16,30 +16,30 @@
 #include <arch/iommu.h>
 
 enum {							/* Local APIC registers */
-	Id = 0x0020,				/* Identification */
-	Ver = 0x0030,	/* Version */
-	Tp = 0x0080,	/* Task Priority */
-	Ap = 0x0090,	/* Arbitration Priority */
-	Pp = 0x00a0,	/* Processor Priority */
-	Eoi = 0x00b0,	/* EOI */
-	Ld = 0x00d0,	/* Logical Destination */
-	Df = 0x00e0,	/* Destination Format */
-	Siv = 0x00f0,	/* Spurious Interrupt Vector */
-	Is = 0x0100,	/* Interrupt Status (8) */
-	Tm = 0x0180,	/* Trigger Mode (8) */
-	Ir = 0x0200,	/* Interrupt Request (8) */
-	Es = 0x0280,	/* Error Status */
-	Iclo = 0x0300,	/* Interrupt Command */
-	Ichi = 0x0310,	/* Interrupt Command [63:32] */
-	Lvt0 = 0x0320,	/* Local Vector Table 0 */
-	Lvt5 = 0x0330,	/* Local Vector Table 5 */
-	Lvt4 = 0x0340,	/* Local Vector Table 4 */
-	Lvt1 = 0x0350,	/* Local Vector Table 1 */
-	Lvt2 = 0x0360,	/* Local Vector Table 2 */
-	Lvt3 = 0x0370,	/* Local Vector Table 3 */
-	Tic = 0x0380,	/* Timer Initial Count */
-	Tcc = 0x0390,	/* Timer Current Count */
-	Tdc = 0x03e0,	/* Timer Divide Configuration */
+	Id = 0x002,				/* Identification */
+	Ver = 0x003,	/* Version */
+	Tp = 0x008,	/* Task Priority */
+	Ap = 0x009,	/* Arbitration Priority */
+	Pp = 0x00a,	/* Processor Priority */
+	Eoi = 0x00b,	/* EOI */
+	Ld = 0x00d,	/* Logical Destination */
+	Df = 0x00e,	/* Destination Format */
+	Siv = 0x00f,	/* Spurious Interrupt Vector */
+	Is = 0x010,	/* Interrupt Status (8) */
+	Tm = 0x018,	/* Trigger Mode (8) */
+	Ir = 0x020,	/* Interrupt Request (8) */
+	Es = 0x028,	/* Error Status */
+	Iclo = 0x030,	/* Interrupt Command */
+	Ichi = 0x031,	/* Interrupt Command [63:32] */
+	Lvt0 = 0x032,	/* Local Vector Table 0 */
+	Lvt5 = 0x033,	/* Local Vector Table 5 */
+	Lvt4 = 0x034,	/* Local Vector Table 4 */
+	Lvt1 = 0x035,	/* Local Vector Table 1 */
+	Lvt2 = 0x036,	/* Local Vector Table 2 */
+	Lvt3 = 0x037,	/* Local Vector Table 3 */
+	Tic = 0x038,	/* Timer Initial Count */
+	Tcc = 0x039,	/* Timer Current Count */
+	Tdc = 0x03e,	/* Timer Divide Configuration */
 
 	Tlvt = Lvt0,	/* Timer */
 	Lint0 = Lvt1,	/* Local Interrupt 0 */
@@ -118,6 +118,7 @@ enum {
 
 static uintptr_t apicbase;
 static int apmachno = 1;
+static uint32_t apicr310;
 
 struct apic xlapic[Napic];
 
@@ -128,7 +129,7 @@ static void __apic_ir_dump(uint64_t r)
 	int i;
 	uint32_t val;
 
-	for (i = 0x10; i < 0x80; i += 0x10) {
+	for (i = 1; i < 8; i++) {
 		val = apicrget(r+i);
 		if (val) {
 			printk("Register at range (%d,%d]: 0x%08x\n", (i*2+32),
@@ -139,32 +140,33 @@ static void __apic_ir_dump(uint64_t r)
 void apic_isr_dump(void)
 {
 	printk("ISR DUMP\n");
-	__apic_ir_dump(0x100);
+	__apic_ir_dump(0x10);
 }
 void apic_irr_dump(void)
 {
 	printk("IRR DUMP\n");
-	__apic_ir_dump(0x200);
+	__apic_ir_dump(0x20);
 }
 
 uint32_t apicrget(uint64_t r)
 {
-	//printk("APICRGET BEFORE SUBTRACTION: %llx\n", r);
-	if (r >= 0x400) {
-		r = r - LAPIC_BASE;
-	//	printk("APICRGET AFTER SUBTRACTION: %llx\n", r);
-	}
 	uint32_t val;
-	if (!apicbase)
-		panic("apicrget: no apic");
-	if (r == 0x310)
-		val = (read_msr(X2APICBase + 0x300/16) >> 32);
+
+	if (r >= 0x40) {
+		printk("%s: OUT OF BOUNDS: register 0x%x\n", __func__, r);
+		monitor(0);
+	}
+	if (r != 0xf && r != 0x3e)
+		printk("%s: Reading from register 0x%llx\n",
+		       __func__, r);
+	if (r == 0x31)
+		val = (read_msr(X2APICBase + 0x30) >> 32);
 	else
-		val = read_msr(X2APICBase + r/16);
+		val = read_msr(X2APICBase + r);
 	printd("apicrget: %s returns %p\n", apicregnames[r], val);
-	if (r == 0x20) {
+	if (r == 0x2) {
 		printk("APIC ID: 0x%lx\n", val);
-		printk("APIC LOGICAL ID: 0x%lx\n", apicrget(0xd0));
+		printk("APIC LOGICAL ID: 0x%lx\n", apicrget(0xd));
 	}
 	return val;
 }
@@ -172,38 +174,44 @@ uint32_t apicrget(uint64_t r)
 void apicrput(uint64_t r, uint32_t data)
 {
 	uint64_t temp_data = 0;
-
-	//printk("APICRPUT BEFORE SUBTRACTION: %llx\n", r);
-	if (r >= 0x400) {
-		r = r - LAPIC_BASE;
-	//	printk("APICRPUT AFTER SUBTRACTION: %llx\n", r);
+	// TODO (ganshun): Check bit differences in ICR between X2APIC and APIC
+	if (r >= 0x40) {
+		printk("%s: OUT OF BOUNDS: register 0x%x\n", __func__, r);
+		monitor(0);
 	}
-	if (!apicbase)
-		panic("apicrput: no apic");
-	if (r == 0x20)
+	if (r != 0x38 && r != 0x32 && r != 0x3e && r != 0xb)
+		printk("%s: Writing to register 0x%llx, value 0x%lx\n",
+		       __func__, r, data);
+	if (r == 0x2)
 		printk("WRITING TO ID");
-	if (r == 0xe0) {
+	if (r == 0xe) {
 		printd("Ignoring DFR at offset 80e in X2APIC mode");
 		return;
 	}
-	if (r == 0xd0) {
+	if (r == 0xd) {
 		printd("Ignoring read only register at offset 0x%02x in X2APIC mode",
 		       r);
 		return;
 	}
 	printd("apicrput: %s = %p\n", apicregnames[r], data);
-	if (r == 0x310) {
-		temp_data = read_msr(X2APICBase + 0x300/16);
-		temp_data &= 0xFFFFFFFF;
-		temp_data |= (uint64_t)data << 32;
-	} else if (r == 0x300) {
-		//temp_data = read_msr(X2APICBase + 0x300/16);
-		//temp_data &= ~0xFFFFFFFF;
-		temp_data = 0xFFFFFFFF00000000ULL;
+
+	if (r == 0x31)
+		panic("Bad Write To ICR\n");
+	else if (r == 0x30)
+		panic("Bad Write To ICR\n");
+	else
 		temp_data |= data;
-	} else
-		temp_data |= data;
-	write_msr(X2APICBase + r/16, temp_data);
+
+	if (r != 0x38 && r != 0x32 && r != 0x3e && r != 0xb)
+		printk("%s: Writing to register 0x%llx, value 0x%lx\n",
+		       __func__, r, temp_data);
+	write_msr(X2APICBase + r, temp_data);
+}
+
+void apicsendipi(uint64_t data)
+{
+	printk("SENDING IPI: 0x%016lx\n", data);
+	write_msr(X2APICBase + 0x30, data);
 }
 
 void apicinit(int apicno, uintptr_t pa, int isbp)
@@ -228,7 +236,7 @@ void apicinit(int apicno, uintptr_t pa, int isbp)
 		return;
 	}
 	assert(pa == LAPIC_PBASE);
-	apicbase = LAPIC_BASE;	/* was the plan to just clobber the global? */
+	//apicbase = LAPIC_BASE;	/* was the plan to just clobber the global? */
 	apic->useable = 1;
 
 	/* plan 9 used to set up a mapping btw apic and pcpui like so:
@@ -309,7 +317,7 @@ int apiconline(void)
 	//printk("APIC ID: %d", apicrget(Id));
 	if (!apicbase) {
 		printk("No apicbase on HW core %d!!\n", hw_core_id());
-		return 0;
+	//	return 0;
 	}
 	apicno = (apicrget(Id) & 0xff);
 	if (apicno >= Napic) {

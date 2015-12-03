@@ -177,15 +177,19 @@ static void set_posted_interrupt(int vector);
 #define ADDR				BITOP_ADDR(addr)
 static inline int test_and_set_bit(int nr, volatile unsigned long *addr);
 
+static int timer_started;
+pthread_t timerthread_struct;
+
 void *timer_thread(void *arg)
 {
 	int fd = open("#cons/vmctl", O_RDWR), ret;
 
 	while (1) {
-		set_posted_interrupt(0xef);
+		set_posted_interrupt(32);
 		pwrite(fd, &vmctl, sizeof(vmctl), 1<<12);
-		uthread_usleep(1);
+		uthread_usleep(1000000);
 	}
+	fprintf(stderr, "SENDING TIMER\n");
 }
 
 void *consout(void *arg)
@@ -263,8 +267,6 @@ void *consin(void *arg)
 	int i;
 	int num;
 	//char c[1];
-	int timer_started = 0;
-	pthread_t timerthread_struct;
 
 	int fd = open("#cons/vmctl", O_RDWR), ret;
 	
@@ -308,15 +310,6 @@ void *consin(void *arg)
 		virtio_mmio_set_vring_irq();
 
 		pwrite(fd, &vmctl, sizeof(vmctl), 1<<12);
-		if (!timer_started && mcp) {
-			/* Start up timer thread */
-			if (pthread_create(&timerthread_struct, NULL, timer_thread, NULL)) {
-				fprintf(stderr, "pth_create failed for timer thread.");
-				perror("pth_create");
-			} else {
-				timer_started = 1;
-			}
-		}
 	}
 	fprintf(stderr, "All done\n");
 	return NULL;
@@ -701,6 +694,15 @@ int main(int argc, char **argv)
 
 	if (ret != sizeof(vmctl)) {
 		perror(cmd);
+	}
+	if (!timer_started && mcp) {
+		/* Start up timer thread */
+		if (pthread_create(&timerthread_struct, NULL, timer_thread, NULL)) {
+			fprintf(stderr, "pth_create failed for timer thread.");
+			perror("pth_create");
+		} else {
+			timer_started = 1;
+		}
 	}
 	while (1) {
 		void showstatus(FILE *f, struct vmctl *v);

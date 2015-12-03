@@ -496,8 +496,7 @@ static bool vector_is_irq(int apic_vec)
  * are all mapped up at PIC1_OFFSET for the cpu / irq_handler. */
 void handle_irq(struct hw_trapframe *hw_tf)
 {
-	//outb(0x3f8, '!');
-	if (hw_tf->tf_trapno != 240) {
+	/*if (hw_tf->tf_trapno != 240) {
 		outb(0x3f8, '!');
 		printk("IRQ on :%d\n", hw_tf->tf_trapno);
 	}
@@ -514,13 +513,16 @@ void handle_irq(struct hw_trapframe *hw_tf)
 	//apic_irr_dump();
 	//print_fault_regs();
 	//monitor(0);
-
+	*/
 	//TEMPORARY HACK TO EOI THE I_POKE_CORE IRQ
 	if (hw_tf->tf_trapno == I_POKE_CORE) {
 		// Send eoi
-		apicrput(0xB0, 0);
+		apicrput(LAPIC_EOI, 0);
 		return;
 	}
+
+	if (hw_tf->tf_trapno != I_KERNEL_MSG && core_id() != 0)
+		printk("I_KERNEL_MSG: core %d\n", core_id());
 
 	struct per_cpu_info *pcpui = &per_cpu_info[core_id()];
 	struct irq_handler *irq_h;

@@ -47,11 +47,11 @@ void lapic_print_isr(void)
 	printk("LAPIC ISR on core %d\n--------------\n", core_id());
 	for (int i = 7; i >= 0; i--)
 		printk("%3d-%3d: %p\n", (i + 1) * 32 - 1, i * 32,
-			apicrget(LAPIC_ISR + i * 0x10));
+			apicrget(LAPIC_ISR + i));
 	printk("LAPIC IRR on core %d\n--------------\n", core_id());
 	for (int i = 7; i >= 0; i--)
 		printk("%3d-%3d: %p\n", (i + 1) * 32 - 1, i * 32,
-			apicrget(LAPIC_IRR + i * 0x10));
+			apicrget(LAPIC_IRR + i));
 }
 
 /* Returns TRUE if the bit 'vector' is set in the LAPIC ISR or IRR (whatever you
@@ -60,7 +60,7 @@ void lapic_print_isr(void)
 static bool __lapic_get_isrr_bit(unsigned long base, uint8_t vector)
 {
 	int which_reg = vector >> 5;	/* 32 bits per reg */
-	uintptr_t lapic_reg = base + which_reg * 0x10;	/* offset 16 */
+	uintptr_t lapic_reg = base + which_reg;	/* offset 16 */
 	return (apicrget(lapic_reg) & (1 << (vector % 32)) ? 1 : 0);
 }
 
@@ -81,7 +81,8 @@ void lapic_mask_irq(struct irq_handler *unused, int apic_vector)
 		warn("Bad apic vector %d\n", apic_vector);
 		return;
 	}
-	mm_reg = LAPIC_BASE + (apic_vector - IdtLAPIC) * 0x10;
+	//mm_reg = LAPIC_BASE + (apic_vector - IdtLAPIC) * 0x10;
+	mm_reg = 0x32 + (apic_vector - IdtLAPIC);
 	apicrput(mm_reg, apicrget(mm_reg) | LAPIC_LVT_MASK);
 }
 
@@ -92,7 +93,8 @@ void lapic_unmask_irq(struct irq_handler *unused, int apic_vector)
 		warn("Bad apic vector %d\n", apic_vector);
 		return;
 	}
-	mm_reg = LAPIC_BASE + 0x320 + (apic_vector - IdtLAPIC) * 0x10;
+	//mm_reg = LAPIC_BASE + 0x320 + (apic_vector - IdtLAPIC) * 0x10;
+	mm_reg = 0x32 + (apic_vector - IdtLAPIC);
 	apicrput(mm_reg, apicrget(mm_reg) & ~LAPIC_LVT_MASK);
 }
 

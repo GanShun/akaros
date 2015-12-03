@@ -25,24 +25,24 @@
 #define LAPIC_PBASE					0xfee00000	/* default *physical* address */
 //#undef LAPIC_BASE
 //#define LAPIC_BASE 0
-#define LAPIC_EOI					(LAPIC_BASE + 0x0b0)
-#define LAPIC_SPURIOUS				(LAPIC_BASE + 0x0f0)
-#define LAPIC_VERSION				(LAPIC_BASE + 0x030)
-#define LAPIC_ERROR					(LAPIC_BASE + 0x280)
-#define LAPIC_ID					(LAPIC_BASE + 0x020)
-#define LAPIC_LOGICAL_ID			(LAPIC_BASE + 0x0d0)
+#define LAPIC_EOI					0x0b
+#define LAPIC_SPURIOUS					0x0f
+#define LAPIC_VERSION					0x03
+#define LAPIC_ERROR					0x28
+#define LAPIC_ID					0x02
+#define LAPIC_LOGICAL_ID				0x0d
 // LAPIC Local Vector Table
-#define LAPIC_LVT_TIMER				(LAPIC_BASE + 0x320)
-#define LAPIC_LVT_THERMAL			(LAPIC_BASE + 0x330)
-#define LAPIC_LVT_PERFMON			(LAPIC_BASE + 0x340)
-#define LAPIC_LVT_LINT0				(LAPIC_BASE + 0x350)
-#define LAPIC_LVT_LINT1				(LAPIC_BASE + 0x360)
-#define LAPIC_LVT_ERROR				(LAPIC_BASE + 0x370)
+#define LAPIC_LVT_TIMER					0x32
+#define LAPIC_LVT_THERMAL				0x33
+#define LAPIC_LVT_PERFMON				0x34
+#define LAPIC_LVT_LINT0					0x35
+#define LAPIC_LVT_LINT1					0x36
+#define LAPIC_LVT_ERROR					0x37
 #define LAPIC_LVT_MASK				0x00010000
 // LAPIC Timer
-#define LAPIC_TIMER_INIT			(LAPIC_BASE + 0x380)
-#define LAPIC_TIMER_CURRENT			(LAPIC_BASE + 0x390)
-#define LAPIC_TIMER_DIVIDE			(LAPIC_BASE + 0x3e0)
+#define LAPIC_TIMER_INIT				0x38
+#define LAPIC_TIMER_CURRENT				0x39
+#define LAPIC_TIMER_DIVIDE				0x3e
 /* Quick note on the divisor.  The LAPIC timer ticks once per divisor-bus ticks
  * (system bus or APIC bus, depending on the model).  Ex: A divisor of 128 means
  * 128 bus ticks results in 1 timer tick.  The divisor increases the time range
@@ -56,14 +56,14 @@
 #define LAPIC_TIMER_DIVISOR_BITS	0x8	/* Div = 32 */
 
 // IPI Interrupt Command Register
-#define LAPIC_IPI_ICR_LOWER			(LAPIC_BASE + 0x300)
-#define LAPIC_IPI_ICR_UPPER			(LAPIC_BASE + 0x310)
+#define LAPIC_IPI_ICR_LOWER				0x30
+#define LAPIC_IPI_ICR_UPPER				0x31
 /* Interrupts being serviced (in-service) and pending (interrupt request reg).
  * Note these registers are not normal bitmaps, but instead are 8 separate
  * 32-bit registers, spaced/aligned on 16 byte boundaries in the LAPIC address
  * space. */
-#define LAPIC_ISR					(LAPIC_BASE + 0x100)
-#define LAPIC_IRR					(LAPIC_BASE + 0x200)
+#define LAPIC_ISR					0x10
+#define LAPIC_IRR					0x20
 
 struct irq_handler;	/* include loops */
 
@@ -81,6 +81,7 @@ int apiconline(void);
 void handle_lapic_error(struct hw_trapframe *hw_tf, void *data);
 uint32_t apicrget(uint64_t r);
 void apicrput(uint64_t r, uint32_t data);
+void apicsendipi(uint64_t data);
 void apic_isr_dump(void);
 void apic_irr_dump(void);
 
@@ -180,55 +181,45 @@ static inline void lapic_enable(void)
 
 static inline void send_init_ipi(void)
 {
-	apicrput(LAPIC_IPI_ICR_LOWER, 0x000c4500);
-	lapic_wait_to_send();
+	apicsendipi(0xFFFFFFFF000c4500);
 }
 
 static inline void send_startup_ipi(uint8_t vector)
 {
-	apicrput(LAPIC_IPI_ICR_LOWER, 0x000c4600 | vector);
-	lapic_wait_to_send();
+	apicsendipi(0xFFFFFFFF000c4600ULL | vector);
 }
 
 static inline void send_self_ipi(uint8_t vector)
 {
-	apicrput(LAPIC_IPI_ICR_LOWER, 0x00044000 | vector);
-	lapic_wait_to_send();
+	// TODO (ganshun): change to the X2APIC method
+	apicsendipi(0x0000000000044000ULL | vector);
 }
 
 static inline void send_broadcast_ipi(uint8_t vector)
 {
-	apicrput(LAPIC_IPI_ICR_LOWER, 0x00084000 | vector);
-	lapic_wait_to_send();
+	apicsendipi(0xFFFFFFFF00084000ULL | vector);
 }
 
 static inline void send_all_others_ipi(uint8_t vector)
 {
-	apicrput(LAPIC_IPI_ICR_LOWER, 0x000c4000 | vector);
-	lapic_wait_to_send();
+	apicsendipi(0xFFFFFFFF000c4000ULL | vector);
 }
 
 static inline void __send_ipi(uint8_t hw_coreid, uint8_t vector)
 {
-	apicrput(LAPIC_IPI_ICR_UPPER, hw_coreid << 24);
-	apicrput(LAPIC_IPI_ICR_LOWER, 0x00004000 | vector);
-	lapic_wait_to_send();
+	apicsendipi(((uint64_t)hw_coreid << 32) | 0x00004000 | vector);
 }
 
 static inline void send_group_ipi(uint8_t hw_groupid, uint8_t vector)
 {
-	apicrput(LAPIC_IPI_ICR_UPPER, hw_groupid << 24);
-	apicrput(LAPIC_IPI_ICR_LOWER, 0x00004800 | vector);
-	lapic_wait_to_send();
+	apicsendipi(((uint64_t)hw_groupid << 32) | 0x00004800 | vector);
 }
 
 static inline void __send_nmi(uint8_t hw_coreid)
 {
 	if (hw_coreid == 255)
 		return;
-	apicrput(LAPIC_IPI_ICR_UPPER, hw_coreid << 24);
-	apicrput(LAPIC_IPI_ICR_LOWER, 0x00004400);
-	lapic_wait_to_send();
+	apicsendipi(((uint64_t)hw_coreid << 32) | 0x00004400);
 }
 
 /* To change the LAPIC Base (not recommended):

@@ -33,16 +33,16 @@
 #define IRTE_VECTOR(x)			((x) << 16)
 #define IRTE_DESTINATION(x)		((x) << 32)
 
-#define SOURCE_ID(x)			((x) << 64)
+#define SOURCE_ID(x)			(x)
 
-#define SOURCE_ID_QUAL_ALL		(0 << 80)
-#define SOURCE_ID_QUAL_IGNORE_LAST	(1 << 80)
-#define SOURCE_ID_QUAL_IGNORE_2_3_LAST	(2 << 80)
-#define SOURCE_ID_QUAL_LAST_3		(3 << 80)
+#define SOURCE_ID_QUAL_ALL		(0 << 16)
+#define SOURCE_ID_QUAL_IGNORE_LAST	(1 << 16)
+#define SOURCE_ID_QUAL_IGNORE_2_3_LAST	(2 << 16)
+#define SOURCE_ID_QUAL_LAST_3		(3 << 16)
 
-#define SOURCE_VALIDATION_NONE		(0 << 82)
-#define SOURCE_VALIDATION_ON		(1 << 82)
-#define SOURCE_VALIDATION_MSB_8		(2 << 82)
+#define SOURCE_VALIDATION_NONE		(0 << 18)
+#define SOURCE_VALIDATION_ON		(1 << 18)
+#define SOURCE_VALIDATION_MSB_8		(2 << 18)
 
 /* Temporary define for testing. We should dynamically get the right addr */
 

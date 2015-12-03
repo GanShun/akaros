@@ -653,21 +653,13 @@ int bus_irq_setup(struct irq_handler *irq_h)
 	}
 	rdt->enabled++;
 	rdt->hi = 0;			/* route to 0 by default */
-	//rdt->hi = 4 << (49-32) | 1 << (48-32);
 	rdt->lo |= Pm | MTf;
-	if (irq_h->dev_irq == 4) {
-		printk("RDTLOW: 0x%lx\n", rdt->lo);
-		rdt->hi = 4 << (49-32) | 1 << (48-32);
-		rdt->lo &= ~(1 << 16); // unmask
-		printk("IRQ 4!!!!\n");
-	}
+	rdt->hi = irq_h->dev_irq << (49-32) | 1 << (48-32);
+
+	init_irte(irq_h->dev_irq, 0, vecno, DELIVERY_MODE_FIXED);
+
 	rtblput(rdt->apic, rdt->intin, rdt->hi, rdt->lo);
 	rtblget(rdt->apic, rdt->intin, &high, &low);
-	if (!(high & (1 << (48-32)))) {
-		//printk("RTBLPUT DID NOT WORK\n");
-		//printk("RTBLPUT 0x%lx, 0x%lx\n", high, low);
-	}
-	printk("RTBLPUT 0x%lx, 0x%lx\n", high, low);
 	print_fault_regs();
 	vecno = rdt->lo & 0xff;
 	spin_unlock(&rdt->apic->lock);
