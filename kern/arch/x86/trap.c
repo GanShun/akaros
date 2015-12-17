@@ -497,6 +497,13 @@ static bool vector_is_irq(int apic_vec)
  * are all mapped up at PIC1_OFFSET for the cpu / irq_handler. */
 void handle_irq(struct hw_trapframe *hw_tf)
 {
+	//TEMPORARY HACK TO EOI THE I_POKE_CORE IRQ
+	if (hw_tf->tf_trapno == I_POKE_CORE) {
+		// Send eoi
+		apicrput(LAPIC_EOI, 0);
+		return;
+	}
+
 	struct per_cpu_info *pcpui = &per_cpu_info[core_id()];
 	struct irq_handler *irq_h;
 	/* Copy out the TF for now */

@@ -13,32 +13,33 @@
 #include <ip.h>
 #include <arch/io.h>
 #include <trap.h>
+#include <arch/iommu.h>
 
 enum {							/* Local APIC registers */
-	Id = 0x0020,				/* Identification */
-	Ver = 0x0030,	/* Version */
-	Tp = 0x0080,	/* Task Priority */
-	Ap = 0x0090,	/* Arbitration Priority */
-	Pp = 0x00a0,	/* Processor Priority */
-	Eoi = 0x00b0,	/* EOI */
-	Ld = 0x00d0,	/* Logical Destination */
-	Df = 0x00e0,	/* Destination Format */
-	Siv = 0x00f0,	/* Spurious Interrupt Vector */
-	Is = 0x0100,	/* Interrupt Status (8) */
-	Tm = 0x0180,	/* Trigger Mode (8) */
-	Ir = 0x0200,	/* Interrupt Request (8) */
-	Es = 0x0280,	/* Error Status */
-	Iclo = 0x0300,	/* Interrupt Command */
-	Ichi = 0x0310,	/* Interrupt Command [63:32] */
-	Lvt0 = 0x0320,	/* Local Vector Table 0 */
-	Lvt5 = 0x0330,	/* Local Vector Table 5 */
-	Lvt4 = 0x0340,	/* Local Vector Table 4 */
-	Lvt1 = 0x0350,	/* Local Vector Table 1 */
-	Lvt2 = 0x0360,	/* Local Vector Table 2 */
-	Lvt3 = 0x0370,	/* Local Vector Table 3 */
-	Tic = 0x0380,	/* Timer Initial Count */
-	Tcc = 0x0390,	/* Timer Current Count */
-	Tdc = 0x03e0,	/* Timer Divide Configuration */
+	Id = 0x002,				/* Identification */
+	Ver = 0x003,	/* Version */
+	Tp = 0x008,	/* Task Priority */
+	Ap = 0x009,	/* Arbitration Priority */
+	Pp = 0x00a,	/* Processor Priority */
+	Eoi = 0x00b,	/* EOI */
+	Ld = 0x00d,	/* Logical Destination */
+	Df = 0x00e,	/* Destination Format */
+	Siv = 0x00f,	/* Spurious Interrupt Vector */
+	Is = 0x010,	/* Interrupt Status (8) */
+	Tm = 0x018,	/* Trigger Mode (8) */
+	Ir = 0x020,	/* Interrupt Request (8) */
+	Es = 0x028,	/* Error Status */
+	Iclo = 0x030,	/* Interrupt Command */
+	Ichi = 0x031,	/* Interrupt Command [63:32] */
+	Lvt0 = 0x032,	/* Local Vector Table 0 */
+	Lvt5 = 0x033,	/* Local Vector Table 5 */
+	Lvt4 = 0x034,	/* Local Vector Table 4 */
+	Lvt1 = 0x035,	/* Local Vector Table 1 */
+	Lvt2 = 0x036,	/* Local Vector Table 2 */
+	Lvt3 = 0x037,	/* Local Vector Table 3 */
+	Tic = 0x038,	/* Timer Initial Count */
+	Tcc = 0x039,	/* Timer Current Count */
+	Tdc = 0x03e,	/* Timer Divide Configuration */
 
 	Tlvt = Lvt0,	/* Timer */
 	Lint0 = Lvt1,	/* Local Interrupt 0 */
@@ -111,33 +112,107 @@ enum {							/* Tdc */
 	DivX1 = 0x0000000b,	/* Divide by 1 */
 };
 
+enum {
+	X2APICBase = 0x800
+};
+
 static uintptr_t apicbase;
 static int apmachno = 1;
+static uint32_t apicr310;
 
 struct apic xlapic[Napic];
 
-static uint32_t apicrget(int r)
+static void __apic_ir_dump(uint64_t r);
+
+static void __apic_ir_dump(uint64_t r)
+{
+	int i;
+	uint32_t val;
+
+	for (i = 1; i < 8; i++) {
+		val = apicrget(r+i);
+		if (val) {
+			printk("Register at range (%d,%d]: 0x%08x\n", (i*2+32),
+			       i*2, val);
+		}
+	}
+}
+void apic_isr_dump(void)
+{
+	printk("ISR DUMP\n");
+	__apic_ir_dump(0x10);
+}
+void apic_irr_dump(void)
+{
+	printk("IRR DUMP\n");
+	__apic_ir_dump(0x20);
+}
+
+uint32_t apicrget(uint64_t r)
 {
 	uint32_t val;
-	if (!apicbase)
-		panic("apicrget: no apic");
-	val = read_mmreg32(apicbase + r);
+
+	if (r >= 0x40)
+		panic("%s: OUT OF BOUNDS: register 0x%x\n", __func__, r);
+	if (r != LAPIC_SPURIOUS && r != LAPIC_TIMER_DIVIDE)
+		printd("%s: Reading from register 0x%llx\n",
+		       __func__, r);
+	if (r == LAPIC_IPI_ICR_UPPER)
+		val = (read_msr(X2APICBase + LAPIC_IPI_ICR_LOWER) >> 32);
+	else
+		val = read_msr(X2APICBase + r);
 	printd("apicrget: %s returns %p\n", apicregnames[r], val);
+	if (r == LAPIC_ID) {
+		printd("APIC ID: 0x%lx\n", val);
+		printd("APIC LOGICAL ID: 0x%lx\n",
+		       apicrget(LAPIC_LOGICAL_ID));
+	}
 	return val;
 }
 
-static void apicrput(int r, uint32_t data)
+void apicrput(uint64_t r, uint32_t data)
 {
-	if (!apicbase)
-		panic("apicrput: no apic");
+	uint64_t temp_data = 0;
+
+	if (r >= 0x40)
+		panic("%s: OUT OF BOUNDS: register 0x%x\n", __func__, r);
+	if (r != LAPIC_TIMER_INIT && r != LAPIC_LVT_TIMER &&
+	    r != LAPIC_TIMER_DIVIDE && r != LAPIC_EOI)
+		printd("%s: Writing to register 0x%llx, value 0x%lx\n",
+		       __func__, r, data);
+	if (r == LAPIC_ID)
+		panic("ILLEGAL WRITE TO ID");
+	if (r == LAPIC_DFR) {
+		printd("Ignoring DFR at offset 80e in X2APIC mode");
+		return;
+	}
+	if (r == LAPIC_LOGICAL_ID) {
+		printd("Ignoring read only register at offset 0x%02x in X2APIC mode",
+		       r);
+		return;
+	}
 	printd("apicrput: %s = %p\n", apicregnames[r], data);
-	write_mmreg32(apicbase + r, data);
+
+	if (r == LAPIC_IPI_ICR_UPPER)
+		panic("Bad Write To ICR\n");
+	else if (r == LAPIC_IPI_ICR_LOWER)
+		panic("Bad Write To ICR\n");
+	else
+		temp_data |= data;
+
+	write_msr(X2APICBase + r, temp_data);
+}
+
+void apicsendipi(uint64_t data)
+{
+	printd("SENDING IPI: 0x%016lx\n", data);
+	write_msr(X2APICBase + 0x30, data);
 }
 
 void apicinit(int apicno, uintptr_t pa, int isbp)
 {
 	struct apic *apic;
-
+	uint64_t msr_val;
 	/*
 	 * Mark the APIC useable if it has a good ID
 	 * and the registers can be mapped.
@@ -156,13 +231,19 @@ void apicinit(int apicno, uintptr_t pa, int isbp)
 		return;
 	}
 	assert(pa == LAPIC_PBASE);
-	apicbase = LAPIC_BASE;	/* was the plan to just clobber the global? */
 	apic->useable = 1;
 
 	/* plan 9 used to set up a mapping btw apic and pcpui like so:
 		pcpui->apicno = apicno; // acpino is the hw_coreid
 		apic->machno = apmachno++; // machno is the os_coreid
 	 * akaros does its own remapping of hw <-> os coreid during smp_boot */
+
+	//IOMMU INIT
+	init_iommu();
+
+	//X2APIC INIT
+	msr_val = read_msr(IA32_APIC_BASE);
+	write_msr(IA32_APIC_BASE, msr_val | (3<<10));
 }
 
 static char *apicdump0(char *start, char *end, struct apic *apic, int i)
@@ -214,12 +295,14 @@ int apiconline(void)
 	uint64_t tsc;
 	uint32_t dfr, ver;
 	int apicno, nlvt;
+	uint64_t msr_val;
 
-	if (!apicbase) {
-		printk("No apicbase on HW core %d!!\n", hw_core_id());
-		return 0;
-	}
-	if ((apicno = ((apicrget(Id) >> 24) & 0xff)) >= Napic) {
+	//X2APIC INIT
+	msr_val = read_msr(IA32_APIC_BASE);
+	write_msr(IA32_APIC_BASE, msr_val | (3<<10));
+
+	apicno = lapic_get_id();
+	if (apicno >= Napic) {
 		printk("Bad apicno %d on HW core %d!!\n", apicno, hw_core_id());
 		return 0;
 	}
