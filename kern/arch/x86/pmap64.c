@@ -19,6 +19,7 @@
 #include <arch/arch.h>
 #include <arch/mmu.h>
 #include <arch/apic.h>
+#include <arch/iommu.h>
 #include <error.h>
 #include <sys/queue.h>
 #include <atomic.h>
@@ -466,6 +467,8 @@ void vm_init(void)
 	}
 	/* For the LAPIC and IOAPIC, we use PAT (but not *the* PAT flag) to make
 	 * these type UC */
+	map_segment(boot_pgdir, DMAR_REG_ADDR, PGSIZE, DMAR_REG_PADDR,
+	            PTE_PCD | PTE_PWT | PTE_KERN_RW | PTE_G, max_jumbo_shift);
 	map_segment(boot_pgdir, IOAPIC_BASE, APIC_SIZE, IOAPIC_PBASE,
 	            PTE_PCD | PTE_PWT | PTE_KERN_RW | PTE_G, max_jumbo_shift);
 	/* VPT mapping: recursive PTE inserted at the VPT spot */
