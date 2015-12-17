@@ -46,7 +46,7 @@ typedef struct x86_pgdir {
  *                     |          Unmapped            | --/--
  *                     |                              |
  *                     |  Kernel static linking limit |
- *                     +------------------------------+ 0xffffffff80000000
+ *  IOMMU_REG_BASE-->  +------------------------------+ 0xffffffff80000000
  *                     |                              |
  *                     |                              |
  *                     |                              |
