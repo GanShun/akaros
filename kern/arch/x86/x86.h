@@ -455,6 +455,16 @@ static inline void write_msr(uint32_t reg, uint64_t val)
 	                         "c"(reg));
 }
 
+static inline void write_mmreg64(uintptr_t reg, uint64_t val)
+{
+	*((volatile uint64_t*)reg) = val;
+}
+
+static inline uint64_t read_mmreg64(uintptr_t reg)
+{
+	return *((volatile uint64_t*)reg);
+}
+
 static inline void write_mmreg32(uintptr_t reg, uint32_t val)
 {
 	*((volatile uint32_t*)reg) = val;
