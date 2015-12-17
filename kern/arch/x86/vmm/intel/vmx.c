@@ -557,16 +557,16 @@ static const struct vmxec cb2ec = {
 	.truemsr = MSR_IA32_VMX_PROCBASED_CTLS2,
 
 	.must_be_1 = (SECONDARY_EXEC_ENABLE_EPT |
-		     SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 		     SECONDARY_EXEC_APIC_REGISTER_VIRT |
 		     SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
+		     SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
 		     SECONDARY_EXEC_WBINVD_EXITING),
 
 	.must_be_0 = (
 		     //SECONDARY_EXEC_APIC_REGISTER_VIRT |
 		     //SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
 		     SECONDARY_EXEC_DESCRIPTOR_EXITING |
-		     SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
+		     SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 		     SECONDARY_EXEC_ENABLE_VPID |
 		     SECONDARY_EXEC_UNRESTRICTED_GUEST |
 		     SECONDARY_EXEC_PAUSE_LOOP_EXITING |
@@ -1188,6 +1188,8 @@ struct emmsr emmsrs[] = {
 
 	// TBD
 	{MSR_IA32_TSC_DEADLINE, "MSR_IA32_TSC_DEADLINE", emsr_fakewrite},
+	{0x800 + LAPIC_TIMER_INIT, "MSR_APIC_INITIAL_COUNT",
+	 emsr_fakewrite},
 };
 
 static uint64_t set_low32(uint64_t hi, uint32_t lo)
@@ -1950,7 +1952,7 @@ int vmx_launch(struct vmctl *v) {
 			vmx_dump_cpu(vcpu);
 			vcpu->shutdown = SHUTDOWN_UNHANDLED_EXIT_REASON;
 		} else if (ret == EXIT_REASON_CPUID) {
-			printk("CPUID EXIT RIP: %p\n", vcpu->regs.tf_rip);
+			printd("CPUID EXIT RIP: %p\n", vcpu->regs.tf_rip);
 			vmx_handle_cpuid(vcpu);
 			vmx_get_cpu(vcpu);
 			vmcs_writel(GUEST_RIP, vcpu->regs.tf_rip + 2);
@@ -1963,6 +1965,7 @@ int vmx_launch(struct vmctl *v) {
 				vcpu->shutdown = SHUTDOWN_NMI_EXCEPTION;
 		} else if (ret == EXIT_REASON_EXTERNAL_INTERRUPT) {
 			printk("External interrupt\n");
+			lapic_send_eoi(0);
 			vmx_dump_cpu(vcpu);
 			printk("GUEST_INTERRUPTIBILITY_INFO: 0x%08x,",  v->intrinfo1);
 			printk("VM_EXIT_INFO_FIELD 0x%08x,", v->intrinfo2);
@@ -2218,6 +2221,16 @@ int intel_vmm_init(void) {
 	/* FIXME: do we need APIC virtualization (flexpriority?) */
 
 	memset(msr_bitmap, 0xff, PAGE_SIZE);
+
+	// We allow the guest to read and write to the X2APIC MSRs
+	memset((void *)msr_bitmap + INTEL_X2APIC_MSR_START, 0,
+	       INTEL_X2APIC_MSR_LENGTH);
+	memset((void *)msr_bitmap + INTEL_X2APIC_MSR_START +
+	       INTEL_MSR_WRITE_OFFSET, 0, INTEL_X2APIC_MSR_LENGTH);
+	// We do not allow the guest to turn on the X2APIC timer on its core
+	memset((void *)msr_bitmap + INTEL_X2APIC_MSR_START +
+	       INTEL_MSR_WRITE_OFFSET + 0x38/8, 1, 1);
+
 	memset(io_bitmap, 0xff, VMX_IO_BITMAP_SZ);
 
 	/* These are the only MSRs that are not autoloaded and not intercepted */

@@ -86,6 +86,15 @@ struct acpi_madt_local_apic Apic0 = {.header = {.type = ACPI_MADT_TYPE_LOCAL_API
 				     .processor_id = 0, .id = 0};
 struct acpi_madt_io_apic Apic1 = {.header = {.type = ACPI_MADT_TYPE_IO_APIC, .length = sizeof(struct acpi_madt_io_apic)},
 				  .id = 1, .address = 0xfec00000, .global_irq_base = 0};
+struct acpi_madt_local_x2apic X2Apic0 = {
+	.header = {
+		.type = ACPI_MADT_TYPE_LOCAL_X2APIC,
+		.length = sizeof(struct acpi_madt_local_x2apic)
+	},
+	.local_apic_id = 0,
+	.uid = 0
+};
+
 struct acpi_madt_interrupt_override isor[] = {
 	/* I have no idea if it should be source irq 2, global 0, or global 2, source 0. Shit. */
 	{.header = {.type = ACPI_MADT_TYPE_INTERRUPT_OVERRIDE, .length = sizeof(struct acpi_madt_interrupt_override)},
@@ -168,15 +177,19 @@ static void set_posted_interrupt(int vector);
 #define ADDR				BITOP_ADDR(addr)
 static inline int test_and_set_bit(int nr, volatile unsigned long *addr);
 
+static int timer_started;
+pthread_t timerthread_struct;
+
 void *timer_thread(void *arg)
 {
 	int fd = open("#cons/vmctl", O_RDWR), ret;
 
 	while (1) {
-		set_posted_interrupt(0xef);
+		set_posted_interrupt(32);
 		pwrite(fd, &vmctl, sizeof(vmctl), 1<<12);
-		uthread_usleep(1);
+		uthread_usleep(1000000);
 	}
+	fprintf(stderr, "SENDING TIMER\n");
 }
 
 void *consout(void *arg)
@@ -254,8 +267,6 @@ void *consin(void *arg)
 	int i;
 	int num;
 	//char c[1];
-	int timer_started = 0;
-	pthread_t timerthread_struct;
 
 	int fd = open("#cons/vmctl", O_RDWR), ret;
 	
@@ -299,15 +310,6 @@ void *consin(void *arg)
 		virtio_mmio_set_vring_irq();
 
 		pwrite(fd, &vmctl, sizeof(vmctl), 1<<12);
-		if (!timer_started && mcp) {
-			/* Start up timer thread */
-			if (pthread_create(&timerthread_struct, NULL, timer_thread, NULL)) {
-				fprintf(stderr, "pth_create failed for timer thread.");
-				perror("pth_create");
-			} else {
-				timer_started = 1;
-			}
-		}
 	}
 	fprintf(stderr, "All done\n");
 	return NULL;
@@ -456,8 +458,8 @@ int main(int argc, char **argv)
 	}
 
 	memset(a_page, 0, 4096);
-	//((uint32_t *)a_page)[0x30/4] = 0x01060015;
-	((uint32_t *)a_page)[0x30/4] = 0xDEADBEEF;
+	((uint32_t *)a_page)[0x30/4] = 0x01060015;
+	//((uint32_t *)a_page)[0x30/4] = 0xDEADBEEF;
 
 
 	if (fd < 0) {
@@ -582,6 +584,8 @@ int main(int argc, char **argv)
 	a += sizeof(Apic0);
 	memmove(a, &Apic1, sizeof(Apic1));
 	a += sizeof(Apic1);
+	memmove(a, &X2Apic0, sizeof(X2Apic0));
+	a += sizeof(X2Apic0);
 	memmove(a, &isor, sizeof(isor));
 	a += sizeof(isor);
 	m->header.length = a - (void *)m;
@@ -690,6 +694,15 @@ int main(int argc, char **argv)
 
 	if (ret != sizeof(vmctl)) {
 		perror(cmd);
+	}
+	if (0 && !timer_started && mcp) {
+		/* Start up timer thread */
+		if (pthread_create(&timerthread_struct, NULL, timer_thread, NULL)) {
+			fprintf(stderr, "pth_create failed for timer thread.");
+			perror("pth_create");
+		} else {
+			timer_started = 1;
+		}
 	}
 	while (1) {
 		void showstatus(FILE *f, struct vmctl *v);
