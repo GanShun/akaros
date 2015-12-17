@@ -571,7 +571,6 @@ bool test_lapic_status_bit(void)
 	// KT_ASSERT_M("IPIs received should be 0", (0 == a));
 	for(int i = 0; i < NUM_IPI; i++) {
 		send_ipi(7, I_TESTING);
-		lapic_wait_to_send();
 	}
 	// need to wait a bit to let those IPIs get there
 	udelay(5000000);
