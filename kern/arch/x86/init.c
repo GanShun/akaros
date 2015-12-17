@@ -6,6 +6,7 @@
 #include <arch/console.h>
 #include <arch/perfmon.h>
 #include <arch/init.h>
+#include <arch/iommu.h>
 #include <console.h>
 #include <monitor.h>
 #include <arch/usb.h>
@@ -87,6 +88,9 @@ void arch_init()
 	#else
 		smp_boot();
 	#endif
+	// Initialize the IOMMU
+	init_iommu();
+
 	proc_init();
 
 	cons_irq_init();
