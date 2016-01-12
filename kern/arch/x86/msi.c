@@ -1,4 +1,4 @@
-/* 
+/*
  * This file is part of the UCB release of Plan 9. It is subject to the license
  * terms in the LICENSE file found in the top-level directory of this
  * distribution and at http://akaros.cs.berkeley.edu/files/Plan9License. No
@@ -20,6 +20,7 @@
 #include <pmap.h>
 #include <smp.h>
 #include <ip.h>
+#include <arch/iommu.h>
 
 enum {
 	Dpcicap		= 1<<0,
@@ -111,6 +112,24 @@ static int msix_blacklist(struct pci_device *p)
 	return 0;
 }
 
+static uint32_t msi_make_addr_lo_iommu(uint64_t vec)
+{
+	uint32_t vector, irte_index, addr_lo;
+
+	vector = vec & 0xff;
+	irte_index = IRTE_MSI_OFFSET | vector;
+
+	addr_lo = 0xfee00018 | ((irte_index & 0x7fff) << 5) |
+	          ((irte_index & 0x8000) >> 13);
+
+	return addr_lo;
+}
+
+static uint32_t msi_make_data_iommu(uint64_t vec)
+{
+	return 0;
+}
+
 static uint32_t msi_make_addr_lo(uint64_t vec)
 {
 	unsigned int dest, lopri, logical;
@@ -172,7 +191,7 @@ int pci_msi_enable(struct pci_device *p, uint64_t vec)
 		return -1;
 	}
 
-	/* read it, clear out the Mmesgmsk bits. 
+	/* read it, clear out the Mmesgmsk bits.
 	 * This means that there will be no multiple
 	 * messages enabled.
 	 */
@@ -236,7 +255,7 @@ static uintptr_t msix_get_capbar_paddr(struct pci_device *p, int offset)
 {
 	uint32_t bir, capbar_off;
 	uintptr_t membar;
-	
+
 	bir = pcidev_read32(p, offset);
 	capbar_off = bir & ~0x7;
 	bir &= 0x7;
@@ -368,6 +387,15 @@ struct msix_irq_vector *pci_msix_enable(struct pci_device *p, uint64_t vec)
 	linkage->addr_lo = msi_make_addr_lo(vec);
 	linkage->addr_hi = 0;
 	linkage->data = msi_make_data(vec);
+	if (iommu_active) {
+		printk("MSI: PCI BUS, 0x%lx\n", p->bus);
+		printk("MSI: PCI DEV, 0x%lx\n", p->dev);
+		printk("MSI: PCI FUNC, 0x%lx\n", p->func);
+		linkage->addr_lo = msi_make_addr_lo_iommu(vec);
+		linkage->data = msi_make_data_iommu(vec);
+		init_irte(IRTE_MSI_OFFSET | vec, 0, vec, DELIVERY_MODE_FIXED,
+		          (uint16_t)(p->bus << 8 | p->dev << 3 | p->func));
+	}
 	write_mmreg32((uintptr_t)&entry->data, linkage->data);
 	write_mmreg32((uintptr_t)&entry->addr_lo, linkage->addr_lo);
 	write_mmreg32((uintptr_t)&entry->addr_hi, linkage->addr_hi);
