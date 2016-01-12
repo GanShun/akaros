@@ -73,6 +73,9 @@
 /* Interrupt Remapping Table Address Register */
 #define EXTENDED_INTERRUPT_MODE					(1 << 11)
 
+/* Offset for MSI based interrupts */
+#define IRTE_MSI_OFFSET							0x100
+
 struct irte {
 	uint64_t low;
 	uint64_t high;
