@@ -20,6 +20,7 @@
 #include <pmap.h>
 #include <smp.h>
 #include <ip.h>
+#include <arch/iommu.h>
 
 enum {
 	Dpcicap		= 1<<0,
@@ -108,6 +109,26 @@ static int msix_blacklist(struct pci_device *p)
 //		case 0x11ab << 16 | 0x6485:	/* placeholder */
 			return -1;
 	}
+	return 0;
+}
+
+static uint32_t msi_make_addr_lo_iommu(uint64_t vec)
+{
+	uint32_t vector, irte_index, addr_lo;
+
+	vector = vec & 0xff;
+	irte_index = IRTE_MSI_OFFSET | vector;
+
+	addr_lo = 0xfee00018 | ((irte_index & 0x7fff) << 5) |
+	          ((irte_index & 0x8000) >> 13);
+
+	init_irte(irte_index, 0, vector, DELIVERY_MODE_FIXED);
+
+	return addr_lo;
+}
+
+static uint32_t msi_make_data_iommu(uint64_t vec)
+{
 	return 0;
 }
 
@@ -365,9 +386,9 @@ struct msix_irq_vector *pci_msix_enable(struct pci_device *p, uint64_t vec)
 	linkage = kmalloc(sizeof(struct msix_irq_vector), KMALLOC_WAIT);
 	linkage->pcidev = p;
 	linkage->entry = entry;
-	linkage->addr_lo = msi_make_addr_lo(vec);
+	linkage->addr_lo = msi_make_addr_lo_iommu(vec);
 	linkage->addr_hi = 0;
-	linkage->data = msi_make_data(vec);
+	linkage->data = msi_make_data_iommu(vec);
 	write_mmreg32((uintptr_t)&entry->data, linkage->data);
 	write_mmreg32((uintptr_t)&entry->addr_lo, linkage->addr_lo);
 	write_mmreg32((uintptr_t)&entry->addr_hi, linkage->addr_hi);

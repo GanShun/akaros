@@ -73,6 +73,9 @@
 #define SET_ROOT_TABLE_PTR		(1 << 30)
 #define TRANSLATION_ENABLE		(1 << 31)
 
+/* Offset for MSI based interrupts */
+#define IRTE_MSI_OFFSET			0x100
+
 struct irte {
 	uint64_t low;
 	uint64_t high;
