@@ -213,6 +213,24 @@ static int guest_cr_num[16] = {
 	-1, -1, -1, -1, -1, -1, -1
 };
 
+static uint32_t direct_access_msrs[15] = {
+	MSR_IA32_SYSENTER_CS,
+	MSR_IA32_SYSENTER_EIP,
+	MSR_IA32_SYSENTER_ESP,
+	MSR_LBR_SELECT,
+	MSR_LBR_TOS,
+	MSR_LBR_NHM_FROM,
+	MSR_LBR_NHM_TO,
+	MSR_LBR_CORE_FROM,
+	MSR_LBR_CORE_TO,
+	MSR_OFFCORE_RSP_0,
+	MSR_OFFCORE_RSP_1,
+	MSR_PEBS_LD_LAT_THRESHOLD,
+	MSR_ARCH_PERFMON_EVENTSEL0,
+	MSR_ARCH_PERFMON_EVENTSEL1,
+	MSR_IA32_PERF_CAPABILITIES
+};
+
 __always_inline unsigned long vmcs_readl(unsigned long field);
 /* See section 24-3 of The Good Book */
 void
@@ -235,6 +253,47 @@ void
 ept_flush(uint64_t eptp)
 {
 	ept_sync_context(eptp);
+}
+
+static void enable_guest_msr(uint8_t *msr_bitmap, uint64_t write_offset,
+                             uint64_t msr)
+{
+	uint64_t word_offset, bit_offset;
+	uint8_t bitmask;
+
+	word_offset = msr/8;
+	bit_offset = msr%8;
+	bitmask = ~(1 << bit_offset);
+
+	*(msr_bitmap + write_offset + word_offset) &= bitmask;
+
+}
+
+static void disable_guest_msr(uint8_t *msr_bitmap, uint64_t write_offset,
+                             uint64_t msr)
+{
+	uint64_t word_offset, bit_offset;
+	uint8_t bitmask;
+
+	word_offset = msr/8;
+	bit_offset = msr%8;
+	bitmask = 1 << bit_offset;
+
+	*(msr_bitmap + write_offset + word_offset) |= bitmask;
+
+}
+
+static void enable_direct_access_msrs(uint8_t *msr_bitmap)
+{
+	int len = 15;
+	int i;
+
+	for (i = 0; i < len; i++) {
+		enable_guest_msr(msr_bitmap, 0,
+		                 direct_access_msrs[i]);
+		enable_guest_msr(msr_bitmap, INTEL_MSR_WRITE_OFFSET,
+		                 direct_access_msrs[i]);
+	}
 }
 
 static void
@@ -1144,8 +1203,9 @@ int emsr_fake_apicbase(struct vmx_vcpu *vcpu, struct emmsr *msr,
 		   uint32_t opcode, uint32_t qual);
 
 struct emmsr emmsrs[] = {
-	{MSR_IA32_MISC_ENABLE, "MSR_IA32_MISC_ENABLE", emsr_miscenable},
-	{MSR_IA32_SYSENTER_CS, "MSR_IA32_SYSENTER_CS", emsr_ok},
+	
+	//{MSR_IA32_MISC_ENABLE, "MSR_IA32_MISC_ENABLE", emsr_miscenable},
+	/*{MSR_IA32_SYSENTER_CS, "MSR_IA32_SYSENTER_CS", emsr_ok},
 	{MSR_IA32_SYSENTER_EIP, "MSR_IA32_SYSENTER_EIP", emsr_ok},
 	{MSR_IA32_SYSENTER_ESP, "MSR_IA32_SYSENTER_ESP", emsr_ok},
 	{MSR_IA32_UCODE_REV, "MSR_IA32_UCODE_REV", emsr_fakewrite},
@@ -1181,15 +1241,16 @@ struct emmsr emmsrs[] = {
 	{MSR_IA32_PERF_CAPABILITIES, "MSR_IA32_PERF_CAPABILITIES", emsr_ok},
 	// unsafe.
 	{MSR_IA32_APICBASE, "MSR_IA32_APICBASE", emsr_fake_apicbase},
-
+	
 	// mostly harmless.
 	{MSR_TSC_AUX, "MSR_TSC_AUX", emsr_fakewrite},
 	{MSR_RAPL_POWER_UNIT, "MSR_RAPL_POWER_UNIT", emsr_readzero},
 
 	// TBD
 	{MSR_IA32_TSC_DEADLINE, "MSR_IA32_TSC_DEADLINE", emsr_fakewrite},
-	{0x800 + LAPIC_TIMER_INIT, "MSR_APIC_INITIAL_COUNT",
-	 emsr_fakewrite},
+	//{0x800 + LAPIC_TIMER_INIT, "MSR_APIC_INITIAL_COUNT",
+	// emsr_fakewrite},
+	*/
 };
 
 static uint64_t set_low32(uint64_t hi, uint32_t lo)
@@ -1214,13 +1275,20 @@ int emsr_miscenable(struct vmx_vcpu *vcpu, struct emmsr *msr,
 		    uint32_t opcode, uint32_t qual) {
 	uint32_t eax, edx;
 	rdmsr(msr->reg, eax, edx);
+	//Temp PRINT
 	/* we just let them read the misc msr for now. */
 	if (opcode == EXIT_REASON_MSR_READ) {
 		vcpu->regs.tf_rax = set_low32(vcpu->regs.tf_rax, eax);
 		vcpu->regs.tf_rax |= MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL;
 		vcpu->regs.tf_rdx = set_low32(vcpu->regs.tf_rdx, edx);
+		printk("MISC MSR READ %08x:%08x\n", edx, eax);
+		monitor(0);
 		return 0;
 	} else {
+		printk("MISC MSR %08x:%08x\n", edx, eax);
+		printk("MISC SET %08x:%08x\n", vcpu->regs.tf_rdx, vcpu->regs.tf_rax);
+		monitor(0);
+		//panic("STOP TO CHECK\n");
 		/* if they are writing what is already written, that's ok. */
 		if (((uint32_t) vcpu->regs.tf_rax == eax)
 		    && ((uint32_t) vcpu->regs.tf_rdx == edx))
@@ -1970,6 +2038,8 @@ int vmx_launch(struct vmctl *v) {
 			printk("GUEST_INTERRUPTIBILITY_INFO: 0x%08x,",  v->intrinfo1);
 			printk("VM_EXIT_INFO_FIELD 0x%08x,", v->intrinfo2);
 			printk("rflags 0x%x\n", vcpu->regs.tf_rflags);
+			// Temporarily just give the interrupt to the guest.
+			vmx_set_rvi(v->intrinfo2 & 0xff);
 			vcpu->shutdown = SHUTDOWN_UNHANDLED_EXIT_REASON;
 		} else if (ret == EXIT_REASON_MSR_READ) {
 			printd("msr read\n");
@@ -2228,8 +2298,15 @@ int intel_vmm_init(void) {
 	memset((void *)msr_bitmap + INTEL_X2APIC_MSR_START +
 	       INTEL_MSR_WRITE_OFFSET, 0, INTEL_X2APIC_MSR_LENGTH);
 	// We do not allow the guest to turn on the X2APIC timer on its core
-	memset((void *)msr_bitmap + INTEL_X2APIC_MSR_START +
-	       INTEL_MSR_WRITE_OFFSET + 0x38/8, 1, 1);
+	disable_guest_msr((uint8_t *)msr_bitmap, INTEL_MSR_WRITE_OFFSET, 0x838);
+	disable_guest_msr((uint8_t *)msr_bitmap, 0, 0x838);
+	disable_guest_msr((uint8_t *)msr_bitmap, INTEL_MSR_WRITE_OFFSET, 0x832);
+	disable_guest_msr((uint8_t *)msr_bitmap, 0, 0x832);
+	enable_guest_msr((uint8_t *)msr_bitmap, INTEL_MSR_WRITE_OFFSET, 0x834);
+	//enable_direct_access_msrs((uint8_t *)msr_bitmap);
+
+	//memset((void *)msr_bitmap + INTEL_X2APIC_MSR_START +
+	//       INTEL_MSR_WRITE_OFFSET + 0x38/8, 1, 1);
 
 	memset(io_bitmap, 0xff, VMX_IO_BITMAP_SZ);
 

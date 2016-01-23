@@ -94,6 +94,7 @@ static const struct address_range msr_rd_wlist[] = {
 	ADDRESS_RANGE(0x00000000, 0xffffffff),
 };
 static const struct address_range msr_wr_wlist[] = {
+	ADDRESS_RANGE(0x00000000, 0xffffffff),
 	ADDRESS_RANGE(MSR_IA32_PERFCTR0,
 				  MSR_IA32_PERFCTR0 + MSR_MAX_VAR_COUNTERS - 1),
 	ADDRESS_RANGE(MSR_ARCH_PERFMON_EVENTSEL0,

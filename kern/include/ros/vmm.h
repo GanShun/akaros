@@ -39,4 +39,7 @@ struct vmctl {
 	uint64_t pir;
 	uint64_t vapic;
 	struct hw_trapframe regs;
+	// These two are for lapic timer
+	uint64_t timer_msr;
+	uint64_t initial_count;
 };

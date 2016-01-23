@@ -109,6 +109,9 @@
 #define MSR_IA32_LASTINTFROMIP		0x000001dd
 #define MSR_IA32_LASTINTTOIP		0x000001de
 
+#define MSR_LAPIC_TIMER			0x00000832
+#define MSR_LAPIC_INITCOUNT		0x00000838
+
 /* DEBUGCTLMSR bits (others vary by model): */
 #define DEBUGCTLMSR_LBR			(1UL <<  0)	/* last branch recording */
 #define DEBUGCTLMSR_BTF			(1UL <<  1)	/* single-step on branches */
