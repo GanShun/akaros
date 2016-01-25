@@ -56,7 +56,7 @@ NO_PRINT_DIRECTORY ?= --no-print-directory
 export_parent_env := $(shell export | sed 's/$$/;/')
 
 # Save the ability to clear the current environment for future use
-clear_current_env := for c in $$(env | cut -d '=' -f 1); do unset $$c; done;
+clear_current_env := for c in $$(env | cut -d '=' -f 1); do unset -- $$c; done;
 
 define export_user_variables
 	CROSS_COMPILE="$(CROSS_COMPILE)"\

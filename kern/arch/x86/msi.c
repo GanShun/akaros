@@ -365,6 +365,9 @@ struct msix_irq_vector *pci_msix_enable(struct pci_device *p, uint64_t vec)
 	struct msix_irq_vector *linkage;
 	unsigned int c, datao;
 
+	// Print to ensure that we are actually here
+	printk("PCI_MSIX_ENABLE vector: 0x%llx\n", vec);
+
 	spin_lock_irqsave(&p->lock);
 	/* Ensure we're init'd.  We could remove this in the future, though not
 	 * everyone calls the extern pci_msix_init. */

@@ -213,22 +213,23 @@ static int guest_cr_num[16] = {
 	-1, -1, -1, -1, -1, -1, -1
 };
 
-static uint32_t direct_access_msrs[15] = {
+static uint32_t direct_access_msrs[] = {
 	MSR_IA32_SYSENTER_CS,
 	MSR_IA32_SYSENTER_EIP,
 	MSR_IA32_SYSENTER_ESP,
-	MSR_LBR_SELECT,
+	/*MSR_LBR_SELECT,
 	MSR_LBR_TOS,
 	MSR_LBR_NHM_FROM,
 	MSR_LBR_NHM_TO,
 	MSR_LBR_CORE_FROM,
 	MSR_LBR_CORE_TO,
-	MSR_OFFCORE_RSP_0,
+	*/MSR_OFFCORE_RSP_0,
 	MSR_OFFCORE_RSP_1,
 	MSR_PEBS_LD_LAT_THRESHOLD,
 	MSR_ARCH_PERFMON_EVENTSEL0,
 	MSR_ARCH_PERFMON_EVENTSEL1,
 	MSR_IA32_PERF_CAPABILITIES
+	
 };
 
 __always_inline unsigned long vmcs_readl(unsigned long field);
@@ -285,7 +286,7 @@ static void disable_guest_msr(uint8_t *msr_bitmap, uint64_t write_offset,
 
 static void enable_direct_access_msrs(uint8_t *msr_bitmap)
 {
-	int len = 15;
+	int len = sizeof(direct_access_msrs)/sizeof(*direct_access_msrs);
 	int i;
 
 	for (i = 0; i < len; i++) {
@@ -1483,6 +1484,7 @@ static void setup_msr(struct vmx_vcpu *vcpu) {
 		e = &vcpu->msr_autoload.guest[i];
 		e->index = autoloaded_msrs[i];
 		e->value = 0xDEADBEEF;
+		//e->value = 0;
 		printk("guest index %p val %p\n", e->index, e->value);
 	}
 }
@@ -2039,7 +2041,7 @@ int vmx_launch(struct vmctl *v) {
 			printk("VM_EXIT_INFO_FIELD 0x%08x,", v->intrinfo2);
 			printk("rflags 0x%x\n", vcpu->regs.tf_rflags);
 			// Temporarily just give the interrupt to the guest.
-			vmx_set_rvi(v->intrinfo2 & 0xff);
+			//vmx_set_rvi(v->intrinfo2 & 0xff);
 			vcpu->shutdown = SHUTDOWN_UNHANDLED_EXIT_REASON;
 		} else if (ret == EXIT_REASON_MSR_READ) {
 			printd("msr read\n");
@@ -2303,7 +2305,7 @@ int intel_vmm_init(void) {
 	disable_guest_msr((uint8_t *)msr_bitmap, INTEL_MSR_WRITE_OFFSET, 0x832);
 	disable_guest_msr((uint8_t *)msr_bitmap, 0, 0x832);
 	enable_guest_msr((uint8_t *)msr_bitmap, INTEL_MSR_WRITE_OFFSET, 0x834);
-	//enable_direct_access_msrs((uint8_t *)msr_bitmap);
+	enable_direct_access_msrs((uint8_t *)msr_bitmap);
 
 	//memset((void *)msr_bitmap + INTEL_X2APIC_MSR_START +
 	//       INTEL_MSR_WRITE_OFFSET + 0x38/8, 1, 1);
