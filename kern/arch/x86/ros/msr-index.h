@@ -110,6 +110,7 @@
 #define MSR_IA32_LASTINTTOIP		0x000001de
 
 #define MSR_LAPIC_TIMER			0x00000832
+#define MSR_LAPIC_THERMAL		0x00000833
 #define MSR_LAPIC_INITCOUNT		0x00000838
 
 /* DEBUGCTLMSR bits (others vary by model): */

@@ -229,7 +229,7 @@ static uint32_t direct_access_msrs[] = {
 	MSR_ARCH_PERFMON_EVENTSEL0,
 	MSR_ARCH_PERFMON_EVENTSEL1,
 	MSR_IA32_PERF_CAPABILITIES
-	
+
 };
 
 __always_inline unsigned long vmcs_readl(unsigned long field);
@@ -1204,7 +1204,7 @@ int emsr_fake_apicbase(struct vmx_vcpu *vcpu, struct emmsr *msr,
 		   uint32_t opcode, uint32_t qual);
 
 struct emmsr emmsrs[] = {
-	
+
 	//{MSR_IA32_MISC_ENABLE, "MSR_IA32_MISC_ENABLE", emsr_miscenable},
 	/*{MSR_IA32_SYSENTER_CS, "MSR_IA32_SYSENTER_CS", emsr_ok},
 	{MSR_IA32_SYSENTER_EIP, "MSR_IA32_SYSENTER_EIP", emsr_ok},
@@ -1242,7 +1242,7 @@ struct emmsr emmsrs[] = {
 	{MSR_IA32_PERF_CAPABILITIES, "MSR_IA32_PERF_CAPABILITIES", emsr_ok},
 	// unsafe.
 	{MSR_IA32_APICBASE, "MSR_IA32_APICBASE", emsr_fake_apicbase},
-	
+
 	// mostly harmless.
 	{MSR_TSC_AUX, "MSR_TSC_AUX", emsr_fakewrite},
 	{MSR_RAPL_POWER_UNIT, "MSR_RAPL_POWER_UNIT", emsr_readzero},
@@ -1970,6 +1970,7 @@ int vmx_launch(struct vmctl *v) {
 	while (1) {
 		advance = 0;
 		vmx_get_cpu(vcpu);
+		v->core = core_id();
 
 		// TODO: manage the fpu when we restart.
 
@@ -2022,6 +2023,11 @@ int vmx_launch(struct vmctl *v) {
 			vmx_dump_cpu(vcpu);
 			vcpu->shutdown = SHUTDOWN_UNHANDLED_EXIT_REASON;
 		} else if (ret == EXIT_REASON_CPUID) {
+			uint32_t eax, edx;
+			rdmsr(0x839, edx, eax);
+			printk("LAPIC CURRENT COUNT: 0x%llx ", ((uint64_t)edx << 32) | eax);
+			rdmsr(0x838, edx, eax);
+			printk("LAPIC INITIAL COUNT: 0x%llx\n", ((uint64_t)edx << 32) | eax);
 			printd("CPUID EXIT RIP: %p\n", vcpu->regs.tf_rip);
 			vmx_handle_cpuid(vcpu);
 			vmx_get_cpu(vcpu);
@@ -2037,6 +2043,7 @@ int vmx_launch(struct vmctl *v) {
 			printk("External interrupt\n");
 			lapic_send_eoi(0);
 			vmx_dump_cpu(vcpu);
+
 			printk("GUEST_INTERRUPTIBILITY_INFO: 0x%08x,",  v->intrinfo1);
 			printk("VM_EXIT_INFO_FIELD 0x%08x,", v->intrinfo2);
 			printk("rflags 0x%x\n", vcpu->regs.tf_rflags);
@@ -2304,7 +2311,11 @@ int intel_vmm_init(void) {
 	disable_guest_msr((uint8_t *)msr_bitmap, 0, 0x838);
 	disable_guest_msr((uint8_t *)msr_bitmap, INTEL_MSR_WRITE_OFFSET, 0x832);
 	disable_guest_msr((uint8_t *)msr_bitmap, 0, 0x832);
+	disable_guest_msr((uint8_t *)msr_bitmap, INTEL_MSR_WRITE_OFFSET, 0x833);
+	disable_guest_msr((uint8_t *)msr_bitmap, 0, 0x833);
 	enable_guest_msr((uint8_t *)msr_bitmap, INTEL_MSR_WRITE_OFFSET, 0x834);
+	//enable_guest_msr((uint8_t *)msr_bitmap, INTEL_MSR_WRITE_OFFSET, 0x6E0);
+	//enable_guest_msr((uint8_t *)msr_bitmap, 0, 0x6E0);
 	enable_direct_access_msrs((uint8_t *)msr_bitmap);
 
 	//memset((void *)msr_bitmap + INTEL_X2APIC_MSR_START +
