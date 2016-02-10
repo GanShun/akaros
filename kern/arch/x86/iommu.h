@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <acpi.h>
 /*
  * This defines a Interrupt Remapping Table Entry for the IOMMU.
  * More details about the bit fields can be found in the intel
@@ -52,6 +53,10 @@
 #define DMAR_REG_PADDR			0xfbffc000
 //#define DMAR_REG_PADDR			0xfbffd000
 
+/* Define a maximum number of IOMMUS */
+#define IOMMU_MAX_NUM			16
+
+
 #define IOMMU_VERSION_REG_OFFSET	0x00
 #define CAPABILITY_REG_OFFSET		0x08
 #define EXTENDED_CAPABILITY_REG_OFFSET	0x10
@@ -72,6 +77,9 @@
 #define SET_FAULT_LOG			(1 << 29)
 #define SET_ROOT_TABLE_PTR		(1 << 30)
 #define TRANSLATION_ENABLE		(1 << 31)
+
+/* Interrupt Remapping Table Address Register */
+#define EXTENDED_INTERRUPT_MODE		(1 << 11)
 
 struct irte {
 	uint64_t low;
@@ -103,3 +111,6 @@ void set_gcr(uint32_t bits);
 void init_irte(uint16_t irte_index, uint32_t dest_id, uint8_t vector,
                uint8_t delivery_mode);
 
+uintptr_t iommu_regs[IOMMU_MAX_NUM];
+
+int iommu_count;

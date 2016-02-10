@@ -160,7 +160,7 @@ void apicrput(uint64_t r, uint32_t data)
 
 void apicsendipi(uint64_t data)
 {
-	printd("SENDING IPI: 0x%016lx\n", data);
+	printk("SENDING IPI: 0x%016lx\n", data);
 	write_msr(MSR_LAPIC_ICR, data);
 }
 

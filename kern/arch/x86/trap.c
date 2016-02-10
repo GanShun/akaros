@@ -556,6 +556,13 @@ void handle_irq(struct hw_trapframe *hw_tf)
 {
 	struct per_cpu_info *pcpui = &per_cpu_info[core_id()];
 
+	//TEMPORARY HACK TO EOI THE I_POKE_CORE IRQ
+	if (hw_tf->tf_trapno == I_POKE_CORE) {
+		// Send eoi
+		apicrput(MSR_LAPIC_EOI, 0);
+		return;
+	}
+
 	/* Copy out the TF for now */
 	if (!in_kernel(hw_tf))
 		set_current_ctx_hw(pcpui, hw_tf);

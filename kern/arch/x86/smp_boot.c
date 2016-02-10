@@ -200,6 +200,7 @@ void smp_boot(void)
 	init_barrier(&generic_barrier, num_cores);
 	/* This will break the cores out of their hlt in smp_entry.S */
 	send_broadcast_ipi(I_POKE_CORE);
+
 	smp_final_core_init();	/* need to init ourselves as well */
 }
 

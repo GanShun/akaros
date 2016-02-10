@@ -73,7 +73,7 @@
 	pushq %rdx;			\
 	movq $0, %rax;			\
 	movq $0, %rdx;			\
-	movq $(MSR_LAPIC_EOI), %rcx; 	\
+	movq $MSR_LAPIC_EOI, %rcx; 	\
 	wrmsr;				\
 	popq %rdx;			\
 	popq %rcx;			\

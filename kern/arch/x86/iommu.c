@@ -4,6 +4,7 @@
  */
 
 #include <arch/iommu.h>
+#include <acpi.h>
 #include <page_alloc.h>
 #include <kmalloc.h>
 #include <pmap.h>
@@ -11,21 +12,46 @@
 void init_iommu(void)
 {
 	uint64_t irtar, capability, ext_capability;
-	uint64_t *irtarp;
 	uint32_t version, status;
-	int init = 0;
-	int i;
+	struct Atable **drhds;
+	int i, drhd_num;
 
-	if (rootp == NULL)
-		rootp = get_cont_pages(0, KMALLOC_WAIT);
-
-	if (irtep == NULL) {
-		irtep = get_cont_pages(8, KMALLOC_WAIT);
-		init = 1;
+	// Find all the different IOMMUs
+	drhds = dmar->children;
+	struct Drhd *tempdrhd;
+	for (i = 0, drhd_num = 0; i < dmar->nchildren; i++, drhds++) {
+		if ((*drhds)->type != 0)
+			continue;
+		tempdrhd = (*drhds)->tbl;
+		printk("IOMMU RBA VALUE FOR i: %d, 0x%llx\n", i, tempdrhd->rba);
+		iommu_regs[drhd_num] = (uintptr_t)KADDR(tempdrhd->rba);
+		if(!iommu_regs[drhd_num])
+			panic("Unable to map IOMMU");
+		drhd_num++;
 	}
-	if (irtep != NULL && init == 1 && rootp != NULL) {
+	iommu_count = drhd_num;
+
+
+	/* I don't technically need this for now. But we will probably want
+	* something for the DMA remapping.
+	*/
+	//rootp = get_cont_pages(0, KMALLOC_WAIT);
+
+	/* Allocate the full 1MB of pages for possible IRTE entries. */
+	irtep = get_cont_pages(8, KMALLOC_WAIT);
+
+
+	if (irtep != NULL) {
+
+		/* The IRTAR must be 4KB aligned. The low 12 bits of the
+		* address are used to determine if X2APIC is enabled, and
+		* the number of entries in the table.
+		* Extended Interrupt Mode states that the X2APIC is being
+		* used, which the 0x0f states that there are 2^(X+1), X = 15
+		* entries in this IRT.
+		*/
 		irtar = (uint64_t)PADDR(irtep) & ~0xfff;
-		irtar |= 0x80f;
+		irtar |= EXTENDED_INTERRUPT_MODE | 0xf;
 		printk("irtep : %p\n", irtep);
 		printk("IOMMU IRTAR : 0x%llx\n", irtar);
 
@@ -63,10 +89,8 @@ void init_iommu(void)
 
 		print_fault_regs();
 
-	} else if (irtep == NULL) {
-		panic("Failed to allocate interrupt remapping table pages!");
 	} else {
-
+		panic("Failed to allocate interrupt remapping table pages!");
 	}
 }
 

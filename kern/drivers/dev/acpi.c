@@ -1313,8 +1313,8 @@ static struct Atable *parsedmar(struct Atable *parent,
 		finatable_nochildren(tt);
 		slice_append(&drhds, tt);
 	}
-
-	return finatable(t, &drhds);
+	dmar = finatable(t, &drhds);
+	return dmar;
 }
 
 /*

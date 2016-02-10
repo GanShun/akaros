@@ -52,6 +52,8 @@
 
 #pragma once
 
+#include <ns.h>
+
 enum {
 
 	Sdthdrsz = 36,			/* size of SDT header */
@@ -511,3 +513,4 @@ struct Atable *finatable_nochildren(struct Atable *t);
 int acpiinit(void);
 extern struct Atable *apics;
 extern struct Atable *srat;
+extern struct Atable *dmar;
