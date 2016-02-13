@@ -476,6 +476,7 @@ struct Xsdt {
  * Device scope.
  */
 struct DevScope {
+	uint8_t type;
 	int enumeration_id;
 	int start_bus_number;
 	int npath;
@@ -513,3 +514,5 @@ struct Atable *finatable_nochildren(struct Atable *t);
 extern struct Atable *apics;
 extern struct Atable *dmar;
 extern struct Atable *srat;
+
+extern uint16_t getioapicbdf(int ioapic_id);
