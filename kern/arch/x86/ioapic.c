@@ -23,6 +23,8 @@
 #include <arch/io.h>
 #include <acpi.h>
 #include <trap.h>
+#include <arch/iommu.h>
+#include <acpi.h>
 
 /* Rbus chains, one for each device bus: each rbus matches a device to an rdt */
 struct Rbus {
@@ -126,7 +128,8 @@ struct Rdt *rbus_get_rdt(int busno, int devno)
  * - intin is the INTIN pin on the ioapic
  * - lo is the lower part of the IOAPIC apic-message, which has the polarity and
  * trigger mode flags. */
-void ioapicintrinit(int busno, int ioapicno, int intin, int devno, int lo)
+void ioapicintrinit(int busno, int ioapicno, int intin, int devno, int lo,
+                    int hi)
 {
 	struct Rbus *rbus;
 	struct Rdt *rdt;
@@ -150,7 +153,8 @@ void ioapicintrinit(int busno, int ioapicno, int intin, int devno, int lo)
 		rdt->apic = ioapic;
 		rdt->intin = intin;
 		rdt->lo = lo;
-		rdt->hi = 0;
+		rdt->hi = hi;
+
 	} else {
 		/* Polarity/trigger check.  Stored lo also has the vector in 0xff */
 		if (lo != (rdt->lo & ~0xff)) {
@@ -261,7 +265,7 @@ static int acpi_make_rdt(int tbdf, int irq, int busno, int devno)
 		return -1;
 	}
 	ioapicintrinit(busno, ioapic_nr, gsi_irq - xioapic[ioapic_nr].ibase,
-	               devno, lo);
+	               devno, lo, 0);
 	return 0;
 }
 
@@ -537,8 +541,10 @@ int bus_irq_setup(struct irq_handler *irq_h)
 {
 	struct Rbus *rbus;
 	struct Rdt *rdt;
-	int busno, devno, vecno;
+	int busno, devno, vecno, ioapic_id;
+	uint32_t high, low;
 	struct pci_device *pcidev;
+	uint16_t bdf;
 
 	if (!ioapic_exists()) {
 		switch (BUSTYPE(irq_h->tbdf)) {
@@ -651,7 +657,19 @@ int bus_irq_setup(struct irq_handler *irq_h)
 	rdt->enabled++;
 	rdt->hi = 0;			/* route to 0 by default */
 	rdt->lo |= Pm | MTf;
+
+	if (iommu_active) {
+		rdt->hi = irq_h->dev_irq << (49-32) | 1 << (48-32);
+
+		// Find the source ID.
+		ioapic_id = acpi_irq2ioapic(irq_h->dev_irq);
+		bdf = getioapicbdf(ioapic_id);
+
+		init_irte(irq_h->dev_irq, 0, vecno, DELIVERY_MODE_FIXED, bdf);
+	}
 	rtblput(rdt->apic, rdt->intin, rdt->hi, rdt->lo);
+	rtblget(rdt->apic, rdt->intin, &high, &low);
+	//print_fault_regs();
 	vecno = rdt->lo & 0xff;
 	spin_unlock(&rdt->apic->lock);
 

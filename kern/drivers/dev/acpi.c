@@ -1221,6 +1221,37 @@ static struct Atable *parsemadt(struct Atable *parent,
 	return apics;
 }
 
+/* This function should be pulled out along with all the DMAR stuff later. */
+uint16_t getioapicbdf(int ioapic_id)
+{
+	struct Atable ** drhds;
+	struct Drhd *tempdrhd;
+	struct DevScope *ds;
+	uint16_t bdf;
+	int i, j;
+
+	if (!dmar) {
+		panic("DMAR not parsed!\n");
+	}
+
+	drhds = dmar->children;
+	for (i = 0; i < dmar->nchildren; i++) {
+		tempdrhd = drhds[i]->tbl;
+		for (j = 0; j < tempdrhd->nscope; j++) {
+			ds = &tempdrhd->scopes[j];
+			if (ds->type == 3 &&
+			    ds->enumeration_id == ioapic_id) {
+				// This IOAPIC.
+				bdf = ds->start_bus_number<<8;
+				bdf |= ((uint8_t *)ds->paths)[0] << 3;
+				bdf |= ((uint8_t *)ds->paths)[1];
+				return bdf;
+			}
+		}
+	}
+	return 0;
+}
+
 static struct Atable *parsedmar(struct Atable *parent,
                                 char *name, uint8_t *raw, size_t rawsize)
 {
@@ -1284,6 +1315,7 @@ static struct Atable *parsedmar(struct Atable *parent,
 		for (int i = 0, o = off + 16; i < nscope; i++) {
 			struct DevScope *ds = &drhd->scopes[i];
 
+			ds->type = *(raw + o);
 			dhlen = *(raw + o + 1);
 			ds->enumeration_id = *(raw + o + 4);
 			ds->start_bus_number = *(raw + o + 5);
