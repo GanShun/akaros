@@ -1,3 +1,5 @@
+#define DEBUG 1
+
 #include <arch/mmu.h>
 #include <arch/x86.h>
 #include <arch/arch.h>
@@ -515,12 +517,17 @@ static void irq_dispatch(struct hw_trapframe *hw_tf)
 		          hw_tf->tf_trapno);
 		/* If we don't have an IRQ handler, we don't know how to EOI.  Odds are,
 		 * it's a LAPIC IRQ, such as I_TESTING */
-		if (!lapic_check_spurious(hw_tf->tf_trapno))
+		if (!lapic_check_spurious(hw_tf->tf_trapno)) {
+			printk("SPURIOUS INTERRUPT\n");
 			lapic_send_eoi(hw_tf->tf_trapno);
+
+		}
 		goto out_no_eoi;
 	}
-	if (irq_h->check_spurious(hw_tf->tf_trapno))
+	if (irq_h->check_spurious(hw_tf->tf_trapno)) {
+		printk("SPURIOUS INTERRUPT\n");
 		goto out_no_eoi;
+	}
 	/* Can now be interrupted/nested by higher priority IRQs, but not by our
 	 * current IRQ vector, til we EOI. */
 	enable_irq();

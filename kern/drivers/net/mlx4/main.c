@@ -37,6 +37,8 @@
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
 
+#include <arch/iommu.h>
+
 #include "mlx4.h"
 #include "fw.h"
 #include "icm.h"
@@ -2379,6 +2381,7 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 		if (dev->flags & MLX4_FLAG_MSI_X) {
 			mlx4_warn(dev, "NOP command failed to generate MSI-X interrupt IRQ %d)\n",
 				  priv->eq_table.eq[dev->caps.num_comp_vectors].irq);
+			print_fault_regs_all();
 			panic("MSI-X required");
 			mlx4_warn(dev, "Trying again without MSI-X\n");
 		} else {
