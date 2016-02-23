@@ -387,11 +387,12 @@ struct msix_irq_vector *pci_msix_enable(struct pci_device *p, uint64_t vec)
 	linkage->addr_lo = msi_make_addr_lo(vec);
 	linkage->addr_hi = 0;
 	linkage->data = msi_make_data(vec);
-	if (iommu_active) {
+	if (0 && iommu_active) {
 		printk("MSI: PCI BUS, 0x%lx\n", p->bus);
 		printk("MSI: PCI DEV, 0x%lx\n", p->dev);
 		printk("MSI: PCI FUNC, 0x%lx\n", p->func);
 		linkage->addr_lo = msi_make_addr_lo_iommu(vec);
+		printk("MSI: ADDR_LO, 0x%lx\n", linkage->addr_lo);
 		linkage->data = msi_make_data_iommu(vec);
 		init_irte(IRTE_MSI_OFFSET | vec, 0, vec, DELIVERY_MODE_FIXED,
 		          (uint16_t)(p->bus << 8 | p->dev << 3 | p->func));

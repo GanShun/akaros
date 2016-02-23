@@ -95,6 +95,8 @@ int iommu_active;
 
 void init_iommu(void);
 
+void print_fault_regs_all(void);
+
 void print_fault_regs(int index);
 
 static inline uint64_t get_iommu_reg64(int index, uint64_t reg)

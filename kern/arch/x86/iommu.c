@@ -122,18 +122,28 @@ void init_irte(uint16_t irte_index, uint32_t dest_id, uint8_t vector,
 	curirte->high = 0;
 
 	curirte->low = IRTE_PRESENT |
-	               //IRTE_TRIGGER_MODE |
+	               IRTE_TRIGGER_MODE |
 	               //IRTE_DESTINATION_MODE |
 	               //IRTE_REDIRECTION_HINT |
 	               delivery_mode << 5 |
 	               (uint64_t)vector << 16 |
 	               (uint64_t)dest_id << 32;
 
-	// Hardcoded value of 0xf0ff for testing until Dan's ACPI code works
 	curirte->high = IRTE_SOURCE_ID(bdf) |
 	                IRTE_SOURCE_ID_QUAL_ALL |
 	                IRTE_SOURCE_VALIDATION_ON;
 
+	printk("IRTE LOW: 0x%llx\n", curirte->low);
+	printk("IRTE HIGH: 0x%llx\n", curirte->high);
+
+}
+
+void print_fault_regs_all(void)
+{
+	for (int i = 0; i < iommu_count; i++) {
+		printk("IOMMU %d\n", i);
+		print_fault_regs(i);
+	}
 }
 
 void print_fault_regs(int index)

@@ -200,7 +200,7 @@ typedef int pm_message_t;
 
 /* Linux printk front ends */
 #ifndef pr_fmt
-#define pr_fmt(fmt) "bnx2x:" fmt
+#define pr_fmt(fmt) fmt
 #endif
 
 #define KERN_EMERG ""
