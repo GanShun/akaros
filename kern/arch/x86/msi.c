@@ -127,6 +127,7 @@ static uint32_t msi_make_addr_lo_iommu(uint64_t vec)
 
 static uint32_t msi_make_data_iommu(uint64_t vec)
 {
+	printk("MSI VEC 0x%x\n", vec);
 	return 0;
 }
 
@@ -362,6 +363,7 @@ struct msix_irq_vector *pci_msix_enable(struct pci_device *p, uint64_t vec)
 	struct msix_entry *entry;
 	struct msix_irq_vector *linkage;
 	unsigned int c, datao;
+	unsigned int vector;
 
 	spin_lock_irqsave(&p->lock);
 	/* Ensure we're init'd.  We could remove this in the future, though not
@@ -388,17 +390,15 @@ struct msix_irq_vector *pci_msix_enable(struct pci_device *p, uint64_t vec)
 	linkage->addr_hi = 0;
 	linkage->data = msi_make_data(vec);
 	if (iommu_active) {
+		vector = vec & 0xff;
 		printk("MSIX: NR_VEC %d\n", p->msix_nr_vec);
 		printk("MSI: PCI BUS, 0x%lx\n", p->bus);
 		printk("MSI: PCI DEV, 0x%lx\n", p->dev);
 		printk("MSI: PCI FUNC, 0x%lx\n", p->func);
-		linkage->addr_lo = msi_make_addr_lo_iommu(vec);
+		linkage->addr_lo = msi_make_addr_lo_iommu(vector);
 		printk("MSI: ADDR_LO, 0x%lx\n", linkage->addr_lo);
-		if(vec == 52)
-			linkage->data = 1;
-		else
-			linkage->data = msi_make_data_iommu(vec);
-		init_irte(IRTE_MSI_OFFSET | vec, 0, vec, DELIVERY_MODE_FIXED,
+		linkage->data = msi_make_data_iommu(vector);
+		init_irte(IRTE_MSI_OFFSET | vector, 0, vector, DELIVERY_MODE_FIXED,
 		          (uint16_t)(p->bus << 8 | p->dev << 3 | p->func));
 	}
 	write_mmreg32((uintptr_t)&entry->data, linkage->data);
