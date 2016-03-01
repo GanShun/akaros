@@ -1,3 +1,5 @@
+#define DEBUG 1
+
 #include <arch/mmu.h>
 #include <arch/x86.h>
 #include <arch/arch.h>

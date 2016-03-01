@@ -389,8 +389,8 @@ struct msix_irq_vector *pci_msix_enable(struct pci_device *p, uint64_t vec)
 	linkage->addr_lo = msi_make_addr_lo(vec);
 	linkage->addr_hi = 0;
 	linkage->data = msi_make_data(vec);
-	if (iommu_active) {
-		vector = vec & 0xff;
+	vector = vec & 0xff;
+	if (iommu_active && vector == 52) {
 		printk("MSIX: NR_VEC %d\n", p->msix_nr_vec);
 		printk("MSI: PCI BUS, 0x%lx\n", p->bus);
 		printk("MSI: PCI DEV, 0x%lx\n", p->dev);
@@ -398,9 +398,10 @@ struct msix_irq_vector *pci_msix_enable(struct pci_device *p, uint64_t vec)
 		linkage->addr_lo = msi_make_addr_lo_iommu(vector);
 		printk("MSI: ADDR_LO, 0x%lx\n", linkage->addr_lo);
 		linkage->data = msi_make_data_iommu(vector);
-		if (vector == 51) {
-			linkage->data = 1;
-		}
+		//if (0 || vector == 51) {
+//			printk("vector 52\n");
+		//	linkage->data = 1;
+		//}
 		init_irte(IRTE_MSI_OFFSET | vector, 0, vector, DELIVERY_MODE_FIXED,
 		          (uint16_t)(p->bus << 8 | p->dev << 3 | p->func));
 	}
