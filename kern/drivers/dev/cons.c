@@ -17,6 +17,7 @@
 #include <atomic.h>
 #include <smp.h>
 #include <error.h>
+#include <ros/procinfo.h>
 
 #if 0
 void (*consdebug) (void) = NULL;
@@ -1277,7 +1278,7 @@ static int readtime(uint32_t off, char *buf, int n)
 	char str[7 * NUMSIZE];
 
 	if (fasthz == 0LL)
-		fasthz = system_timing.tsc_freq;
+		fasthz = __proc_global_info.tsc_freq;
 #if 0
 	fastticks((uint64_t *) & fasthz);
 	nsec = todget(&ticks);
@@ -1326,7 +1327,7 @@ static int readbintime(char *buf, int n)
 
 	i = 0;
 	if (fasthz == 0LL)
-		fasthz = system_timing.tsc_freq;
+		fasthz = __proc_global_info.tsc_freq;
 #if 0
 	fastticks((uint64_t *) & fasthz);
 	nsec = todget(&ticks);
