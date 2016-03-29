@@ -742,6 +742,10 @@ bool handle_vmexit_extirq(struct vm_trapframe *tf)
 {
 	struct hw_trapframe hw_tf;
 
+if ((tf->tf_intrinfo2 & INTR_INFO_VECTOR_MASK) == 0xef) {
+	lapic_send_eoi(0);
+	return false;
+}
 	/* For now, we just handle external IRQs.  I think guest traps should go to
 	 * the guest, based on our vmctls */
 	assert((tf->tf_intrinfo2 & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_EXT_INTR);

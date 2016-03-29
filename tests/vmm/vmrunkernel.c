@@ -24,6 +24,7 @@
 #include <vmm/virtio_ids.h>
 #include <vmm/virtio_config.h>
 #include <vmm/sched.h>
+#include <ros/procinfo.h>
 
 struct vmctl vmctl;
 struct vmm_gpcore_init gpci;
@@ -563,7 +564,6 @@ int main(int argc, char **argv)
 		                    " nohlt"
 		                    " init=/bin/launcher"
 		                    " lapic=notscdeadline"
-		                    " lapictimerfreq=1000000"
 		                    " pit=none";
 	char *cmdline_extra = "\0";
 	char *cmdline;
@@ -800,8 +800,8 @@ int main(int argc, char **argv)
 	a += 4096;
 	bp->hdr.cmd_line_ptr = (uintptr_t) cmdline;
 	tsc_freq_khz = get_tsc_freq()/1000;
-	sprintf(cmdline, "%s tscfreq=%lld %s", cmdline_default, tsc_freq_khz,
-	        cmdline_extra);
+	sprintf(cmdline, "%s lapictimerfreq=%lld tscfreq=%lld %s", cmdline_default,
+	        __proc_global_info.bus_freq, tsc_freq_khz, cmdline_extra);
 
 
 	/* Put the e820 memory region information in the boot_params */
@@ -898,7 +898,7 @@ int main(int argc, char **argv)
 	if (debug)
 		vapic_status_dump(stderr, (void *)gpci.vapic_addr);
 
-	if (mcp) {
+	if (0 && mcp) {
 		/* Start up timer thread */
 		if (pthread_create(&timerthread_struct, NULL, timer_thread, NULL)) {
 			fprintf(stderr, "pth_create failed for timer thread.");
@@ -996,6 +996,9 @@ int main(int argc, char **argv)
 					        vm_tf->tf_intrinfo1, vm_tf->tf_intrinfo2);
 				if (debug) pir_dump();
 				//vmctl.command = RESUME;
+				vm_tf->tf_trap_inject = VM_TRAP_VALID
+                                     //   | VM_TRAP_HARDWARE
+                                        | 0xef; // GPF
 				break;
 			case EXIT_REASON_IO_INSTRUCTION:
 				fprintf(stderr, "IO @ %p\n", vm_tf->tf_rip);

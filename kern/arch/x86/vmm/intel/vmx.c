@@ -1320,6 +1320,8 @@ int intel_vmm_init(void) {
 	__vmx_disable_intercept_for_msr(msr_bitmap, MSR_LAPIC_EOI);
 	__vmx_disable_intercept_for_msr(msr_bitmap, MSR_LAPIC_TPR);
 	__vmx_disable_intercept_for_msr(msr_bitmap, MSR_LAPIC_SELF_IPI);
+	__vmx_disable_intercept_for_msr(msr_bitmap, MSR_LAPIC_LVT_TIMER);
+	__vmx_disable_intercept_for_msr(msr_bitmap, MSR_LAPIC_INITIAL_COUNT);
 
 	memset(io_bitmap, 0xff, VMX_IO_BITMAP_SZ);
 
