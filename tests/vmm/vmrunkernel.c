@@ -337,20 +337,23 @@ static void pir_dump()
 int main(int argc, char **argv)
 {
 	struct boot_params *bp;
-	char *cmdline_default = "earlyprintk=vmcall,keep"
+	//TODO(kmilka): These are the parameters needed to boot prodkernerl,
+	// we need a better way to specifiy them for different kernels without
+	// edditing them here.
+	char *cmdline_default = "earlyprintk=vmcall"
 		                    " console=hvc0"
-		                    " nosmp"
 		                    " maxcpus=1"
 		                    " acpi.debug_layer=0x2"
 		                    " acpi.debug_level=0xffffffff"
 		                    " apic=debug"
 		                    " noexec=off"
 		                    " nohlt"
-		                    " init=/bin/launcher"
+		                    " init=/bin/sh"
 		                    " lapic=notscdeadline"
 		                    " lapictimerfreq=1000000"
 		                    " pit=none"
-		                    " noinvpcid";
+		                    //" noinvpcid"
+							" root=/dev/vda1";
 	char *cmdline_extra = "\0";
 	char *cmdline;
 	uint64_t *p64;
