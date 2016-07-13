@@ -98,18 +98,30 @@ static int target(void *insn, int *store)
 		s = 4;
 		break;
 	case 0x0f:
-	switch(*word) {
-		case 0xb70f:
-			s = 2;
-			break;
-		default:
-			fprintf(stderr, "can't get size of %02x/%04x @ %p\n", *byte, *word, byte);
-			return -1;
-			break;
+		switch(*word) {
+			case 0xb70f:
+				s = 2;
+				break;
+			default:
+				fprintf(stderr, "can't get size of %02x/%04x @ %p\n", *byte, *word, byte);
+				return -1;
+				break;
+			}
+		break;
+	case 0x41:
+		/* VEX byte for modrm field */
+		switch(*word) {
+			case 0x8a41:
+				s = 1;
+				break;
+			default:
+				fprintf(stderr, "unparsed vex instruction %02x/%04x @ %p\n", *byte, *word, byte);
+				return -1;
 		}
 		break;
 	default:
 		fprintf(stderr, "can't get size of %02x @ %p\n", *byte, byte);
+		fprintf(stderr, "can't get WORD of %04x @ %p\n", *word, word);
 		return -1;
 		break;
 	}
@@ -124,6 +136,8 @@ static int target(void *insn, int *store)
 	case 0x8b:
 	case 0x81:
 		*store = !(*byte & 2);
+		break;
+	case 0x41:
 		break;
 	default:
 		fprintf(stderr, "%s: Can't happen. rip is: %p\n", __func__, byte);
@@ -147,6 +161,11 @@ static int insize(void *rip)
 		kva++;
 	}
 
+	/* return 3 to handle this specific instruction case. We don't want this
+	 * to turn into a fully fledged decode. */
+	if (kva[0] == 0x41 && kva[1] == 0x8a && kva[2] == 0x01) {
+		return 3;
+	}
 	/* the dreaded mod/rm byte. */
 	int mod = kva[1]>>6;
 	int rm = kva[1] & 7;
@@ -229,7 +248,8 @@ int decode(struct guest_thread *vm_thread, uint64_t *gpa, uint8_t *destreg,
 
 	*advance = insize(kva);
 
-	uint16_t ins = *(uint16_t *)(kva + (kva[0] == 0x44) + (kva[0] == 0x0f));
+	uint16_t ins = *(uint16_t *)(kva + (kva[0] == 0x44) + (kva[0] == 0x0f)
+	                             + (kva[0] == 0x41));
 	DPRINTF("ins is %04x\n", ins);
 
 	*destreg = (ins>>11) & 7;
