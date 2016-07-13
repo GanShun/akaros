@@ -23,6 +23,7 @@
 #include <vmm/linux_bootparam.h>
 
 #include <vmm/virtio.h>
+#include <vmm/virtio_blk.h>
 #include <vmm/virtio_mmio.h>
 #include <vmm/virtio_ids.h>
 #include <vmm/virtio_config.h>
@@ -248,6 +249,36 @@ static struct virtio_vq_dev net_vqdev = {
 			.qnum_max = 64,
 			.srv_fn = net_transmitq_fn,
 			.vqdev = &net_vqdev
+		},
+	}
+};
+
+static struct virtio_mmio_dev blk_mmio_dev = {
+	.poke_guest = virtio_poke_guest,
+};
+
+static struct virtio_blk_config blk_cfg = {
+};
+
+static struct virtio_blk_config blk_cfg_d = {
+};
+
+static struct virtio_vq_dev blk_vqdev = {
+	.name = "block",
+	.dev_id = VIRTIO_ID_BLOCK,
+	.dev_feat = (1ULL << VIRTIO_F_VERSION_1),
+
+	.num_vqs = 1,
+	.cfg = &blk_cfg,
+	.cfg_d = &blk_cfg_d,
+	.cfg_sz = sizeof(struct virtio_blk_config),
+	.transport_dev = &blk_mmio_dev,
+	.vqs = {
+		{
+			.name = "blk_request",
+			.qnum_max = 64,
+			.srv_fn = blk_request,
+			.vqdev = &blk_vqdev
 		},
 	}
 };
@@ -600,7 +631,13 @@ int main(int argc, char **argv)
 	net_mmio_dev.vqdev = &net_vqdev;
 	vm->virtio_mmio_devices[VIRTIO_MMIO_NETWORK_DEV] = &net_mmio_dev;
 
+	blk_mmio_dev.addr =
+	    virtio_mmio_base_addr + PGSIZE * VIRTIO_MMIO_BLOCK_DEV;
+	blk_mmio_dev.vqdev = &blk_vqdev;
+	vm->virtio_mmio_devices[VIRTIO_MMIO_BLOCK_DEV] = &blk_mmio_dev;
+
 	net_init_fn(&net_vqdev, default_nic);
+	blk_init_fn(&blk_vqdev, "prod71vm.img");
 
 	/* Set the kernel command line parameters */
 	a += 4096;
