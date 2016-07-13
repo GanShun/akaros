@@ -36,6 +36,7 @@
 #include <vmm/virtio_mmio.h>
 #include <vmm/virtio_ids.h>
 #include <vmm/virtio_config.h>
+#include <ros/arch/mmu.h>
 #include <ros/arch/trapframe.h>
 
 int debug_decode = 0;
@@ -216,11 +217,13 @@ int decode(struct guest_thread *vm_thread, uint64_t *gpa, uint8_t *destreg,
 	// we take a shortcut for now: read the low 30 bits and use
 	// that as the kernel PA, or our VA, and see what's
 	// there. Hokey. Works.
-	uint8_t *kva = (void *)(vm_tf->tf_rip & 0x3fffffff);
+	DPRINTF("rip is %p\n", vm_tf->tf_rip);
+	uint8_t *kva = (uint8_t *)rippa(vm_thread);
 	DPRINTF("kva is %p\n", kva);
 
 	// fail fast. If we can't get the size we're done.
 	*size = target(kva, store);
+	DPRINTF("store is %d\n", *store);
 	if (*size < 0)
 		return -1;
 

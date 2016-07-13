@@ -129,7 +129,7 @@ bool io(struct guest_thread *vm_thread)
 	 * the upper 34 bits and take the rest + 1M as our address
 	 * TODO: put this in vmctl somewhere?
 	 */
-	ip = vm_tf->tf_rip & 0x3fffffff;
+	ip = (uintptr_t)rippa(vm_thread);
 	edx = vm_tf->tf_rdx;
 	ip8 = (void *)ip;
 	ip16 = (void *)ip;

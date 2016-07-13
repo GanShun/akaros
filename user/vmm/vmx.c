@@ -20,6 +20,7 @@
 #include <vmm/virtio_ids.h>
 #include <ros/arch/vmx.h>
 #include <vmm/sched.h>
+#include <ros/arch/mmu.h>
 #include <ros/arch/trapframe.h>
 
 char *vmxexit[] = {
@@ -66,8 +67,27 @@ void showstatus(FILE *f, struct guest_thread *vm_thread)
 uint64_t gvatogpa(struct guest_thread *vm_thread, uint64_t va)
 {
 	assert(vm_thread != NULL);
-	assert(va >= 0xffffffffc0000000ULL);
-	return va & 0x3fffffff;
+	struct vm_trapframe *vm_tf = gth_to_vmtf(vm_thread);
+	uint64_t pa;
+	uint64_t *ptptr = (uint64_t *)vm_tf->tf_cr3;
+
+	int early = 0;
+	uint64_t entry;
+	for (int shift = PML4_SHIFT; shift >= PML1_SHIFT; shift -= BITS_PER_PML){
+		entry = ptptr[PMLx(va, shift)];
+
+		assert((entry & 1) != 0);
+		if ((entry & (1<<8)) != 0) {
+			uint64_t bitmask = ((1 << shift) - 1);
+			pa = (((uint64_t)va & bitmask) | (entry & ~bitmask));
+			early = 1;
+			break;
+		}
+		ptptr = (uint64_t *)(entry & ~0xfffULL);
+	}
+	if (early == 0)
+		pa = ((uint64_t)va & 0xfff) | (uint64_t)ptptr;
+	return pa;
 }
 
 /* Get the RIP as a physical address. */
