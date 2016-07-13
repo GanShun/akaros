@@ -393,6 +393,10 @@ int main(int argc, char **argv)
 	memset(vm->low4k, 0xff, PGSIZE);
 	vm->low4k[0x40e] = 0;
 	vm->low4k[0x40f] = 0;
+	vm->low4k[0x413] = 0;
+	vm->low4k[0x414] = 0;
+	vm->low4k[0x415] = 0;
+	vm->low4k[0x416] = 0;
 
 	//Place mmap(Gan)
 	a_page = mmap((void *)0xfee00000, PGSIZE, PROT_READ | PROT_WRITE,
