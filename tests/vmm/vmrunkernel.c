@@ -347,10 +347,10 @@ int main(int argc, char **argv)
 	struct acpi_table_madt *m;
 	struct acpi_table_xsdt *x;
 	// lowmem is a bump allocated pointer to 2M at the "physbase" of memory
-	void *lowmem = (void *) 0x1000000;
+	void *lowmem = (void *) 0xf00000;
 	int amt;
 	int vmmflags = 0; // Disabled probably forever. VMM_VMCALL_PRINTF;
-	uint64_t entry = 0x1200000, kerneladdress = 0x1200000;
+	uint64_t entry = 0x1000000, kerneladdress = 0x1000000;
 	int ret;
 	uintptr_t size;
 	void * xp;
@@ -718,6 +718,8 @@ int main(int argc, char **argv)
 
 	p512[PML4(kerneladdress)] = (uint64_t)p1 | PTE_KERN_RW;
 	p1[PML3(kerneladdress)] = (uint64_t)p2m | PTE_KERN_RW;
+	p2m[PML2(0xe00000)] =
+	    (uint64_t)(0xe00000) | PTE_KERN_RW | PTE_PS;
 	for (uintptr_t i = 0; i < size; i += PML2_PTE_REACH) {
 		p2m[PML2(kerneladdress + i)] =
 		    (uint64_t)(kerneladdress + i) | PTE_KERN_RW | PTE_PS;
@@ -733,7 +735,7 @@ int main(int argc, char **argv)
 	vm_tf = gth_to_vmtf(vm->gths[0]);
 	vm_tf->tf_cr3 = (uint64_t) p512;
 	vm_tf->tf_rip = entry;
-	vm_tf->tf_rsp = 0;
+	vm_tf->tf_rsp = 0x1000000;
 	vm_tf->tf_rsi = (uint64_t) bp;
 	start_guest_thread(vm->gths[0]);
 

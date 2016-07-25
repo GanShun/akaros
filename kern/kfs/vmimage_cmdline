@@ -6,8 +6,7 @@ earlyprintk=vmcall,keep
  apic=debug
  noexec=off
  nohlt
- init=/bin/sh
  lapic=notscdeadline
  lapictimerfreq=1000000
  pit=none
- root=/dev/vda1
+ root=/dev/vda3

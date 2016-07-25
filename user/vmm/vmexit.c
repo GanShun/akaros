@@ -242,6 +242,8 @@ bool handle_vmexit(struct guest_thread *gth)
 		        vm_tf->tf_exit_reason);
 		fprintf(stderr, "RIP %p, shutdown 0x%x\n", vm_tf->tf_rip,
 		        vm_tf->tf_exit_reason);
+		fprintf(stderr, "CR2 %p\n",
+		        vm_tf->tf_cr2);
 		return FALSE;
 	}
 }
