@@ -679,7 +679,7 @@ int main(int argc, char **argv)
 			 */
 			vm->virtio_mmio_devices[i]->irq = i;
 			len = snprintf(cmdlinep, cmdlinesz,
-		               " virtio_mmio.device=1K@0x%llx:%lld",
+		               " virtio_opt.device=1K@0x%llx:%lld",
 		               vm->virtio_mmio_devices[i]->addr,
 		               vm->virtio_mmio_devices[i]->irq);
 		if (len >= cmdlinesz) {
