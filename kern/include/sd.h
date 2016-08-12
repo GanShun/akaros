@@ -10,15 +10,17 @@
 /*
  * Storage Device.
  */
-typedef struct SDev SDev;
-typedef struct SDifc SDifc;
-typedef struct SDio SDio;
-typedef struct SDpart SDpart;
-typedef struct SDperm SDperm;
-typedef struct SDreq SDreq;
-typedef struct SDunit SDunit;
+struct devconf;
+struct sdev;
+struct sdifc;
+struct sdio;
+struct sdpart;
+struct sdperm;
+struct sdreq;
+struct sdunit;
 
-struct SDperm {
+struct sdperm {
+
 	char *name;
 	char *user;
 	uint32_t perm;
@@ -50,8 +52,8 @@ struct SDunit {
 	QLock raw;         /* raw read or write in progress */
 	uint32_t rawinuse; /* really just a test-and-set */
 	int state;
-	SDreq *req;
-	SDperm rawperm;
+	struct sdreq *req;
+	struct sdperm rawperm;
 };
 
 /*
@@ -145,17 +147,6 @@ enum {
 };
 
 /*
- * Allow the default #defines for sdmalloc & sdfree to be overridden by
- * system-specific versions.  This can be used to avoid extra copying
- * by making sure sd buffers are cache-aligned (some ARM systems) or
- * page-aligned (xen) for DMA.
- */
-#ifndef sdmalloc
-#define sdmalloc(n) malloc(n)
-#define sdfree(p) free(p)
-#endif
-
-/*
  * mmc/sd/sdio host controller interface
  */
 
@@ -189,7 +180,7 @@ extern SDev *scsiid(SDev *, SDifc *);
 /*
  *  hardware info about a device
  */
-typedef struct devport {
+struct devport {
 	uint32_t port;
 	int size;
 } Devport;
