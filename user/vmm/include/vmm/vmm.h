@@ -33,6 +33,7 @@ struct virtual_machine {
 	 * memory. */
 	uint8_t						*low4k;
 	struct virtio_mmio_dev		*virtio_mmio_devices[VIRTIO_MMIO_MAX_NUM_DEV];
+	struct virtio_g_dev			*virtio_g_devices[VIRTIO_MMIO_MAX_NUM_DEV];
 };
 
 char *regname(uint8_t reg);

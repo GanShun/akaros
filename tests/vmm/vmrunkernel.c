@@ -187,6 +187,39 @@ static struct virtio_mmio_dev cons_mmio_dev = {
 	.poke_guest = virtio_poke_guest,
 };
 
+/* This is the host storage area to verify writes. Each 'page' takes only
+ * 32 bytes. */
+static uint32_t cons_g_host_storage[16];
+
+static struct virtio_g_dev cons_g_dev = {
+	/* TODO(ganshun): Implement page assignment in main */
+	.read_page = NULL,
+	.write_page = NULL,
+	.status_field = NULL,
+	.host_read_page = cons_g_host_storage,
+	.host_write_page = cons_g_host_storage + 8,
+	/* Host status field is not a pointer, it's an actual field. */
+	.host_status_field = 0,
+	.poke_guest = virtio_poke_guest,
+
+	.mmio_dev = &cons_mmio_dev,
+	.vm = &local_vm
+}
+
+static struct virtio_vq_dev cons_g_vqdev = {
+	.name = "console_command",
+	.num_vqs = 1,
+	.transport_dev = &cons_g_dev,
+	.vqs = {
+			{
+				.name = "cons_g_commandq",
+				.qnum_max = 64,
+				.srv_fn = virtio_g_srv_fn,
+				.vqdev = &cons_g_vqdev
+			},
+		}
+};
+
 static struct virtio_console_config cons_cfg;
 static struct virtio_console_config cons_cfg_d;
 
