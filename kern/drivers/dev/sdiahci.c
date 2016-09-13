@@ -2100,6 +2100,7 @@ releasedrive(struct kref *kref)
 	printk("release drive called, but we don't do that yet\n");
 }
 
+volatile int staydead = 0;  // TODO(afergs): remove
 static struct sdev*
 iapnp(void)
 {
@@ -2108,6 +2109,9 @@ iapnp(void)
 	struct ctlr *c;
 	struct pci_device *p;
 	struct sdev *head, *tail, *s;
+
+	printk("sdiahci: About to spin!\n");
+	while (!staydead);  // TODO(afergs): remove
 
 	// TODO: ensure we're only called once.
 
@@ -2121,7 +2125,7 @@ iapnp(void)
 			continue;
 		if (p->bar[Abar].mmio_base32 == 0)
 			continue;
-		if(niactlr == NCtlr){
+		if (niactlr == NCtlr){
 			printk("ahci: iapnp: %s: too many controllers\n",
 			       tname[type]);
 			break;
