@@ -220,7 +220,7 @@ static	int	debug;
 static	int	prid = 1;
 static	int	datapi;
 
-// TODO: does this get initialized correctly? 
+// TODO: does this get initialized correctly?
 static char stab[] = {
 	[0]	= 'i', 'm',
 	[8]	= 't', 'c', 'p', 'e',
@@ -333,11 +333,11 @@ ahciwait(struct aportc *c, int ms)
 	return -1;
 }
 
+unsigned char *cfis;
 /* fill in cfis boilerplate */
 static unsigned char *
 cfissetup(struct aportc *pc)
 {
-	unsigned char *cfis;
 
 	cfis = pc->pm->ctab->cfis;
 	memset(cfis, 0, 0x20);
@@ -357,7 +357,8 @@ listsetup(struct aportc *pc, int flags)
 	list->flags = flags | 5;
 	list->len = 0;
 	list->ctab = PCIWADDR(pc->pm->ctab);
-	list->ctabhi = 0;
+	list->ctabhi = PCIWADDR(pc->pm->ctab) >> 32;
+	//printk("CTAB lo and hi: 0x%08x, 0x%08x", list->ctab, list->ctabhi);
 }
 
 static int
@@ -539,7 +540,7 @@ ahciidentify0(struct aportc *pc, void *id, int atapi)
 	memset(id, 0, 0x100);			/* magic */
 	p = &pc->pm->ctab->prdt;
 	p->dba = PCIWADDR(id);
-	p->dbahi = 0;
+	p->dbahi = PCIWADDR(id) >> 32;
 	p->count = 1<<31 | (0x200-2) | 1;
 	return ahciwait(pc, 3*1000);
 }
@@ -787,9 +788,9 @@ ahciconfigdrive(Drive *d)
 	p->serror = SerrAll;
 
 	p->list = PCIWADDR(pm->list);
-	p->listhi = 0;
+	p->listhi = PCIWADDR(pm->list) >> 32;
 	p->fis = PCIWADDR(pm->fis.base);
-	p->fishi = 0;
+	p->fishi = PCIWADDR(pm->fis.base) >> 32;
 	p->cmd |= Afre|Ast;
 
 	/* drive coming up in slumbering? */
@@ -1608,11 +1609,11 @@ ahcibuild(Drive *d, unsigned char *cmd, void *data, int n, int64_t lba)
 		l->flags |= Lwrite;
 	l->len = 0;
 	l->ctab = PCIWADDR(t);
-	l->ctabhi = 0;
+	l->ctabhi = PCIWADDR(t) >> 32;
 
 	p = &t->prdt;
 	p->dba = PCIWADDR(data);
-	p->dbahi = 0;
+	p->dbahi = PCIWADDR(data) >> 32;
 	if(d->unit == NULL)
 		panic("ahcibuild: NULL d->unit");
 	p->count = 1<<31 | (d->unit->secsize*n - 2) | 1;
@@ -1662,14 +1663,14 @@ ahcibuildpkt(struct aportm *pm, struct sdreq *r, void *data, int n)
 		l->flags |= Lwrite;
 	l->len = 0;
 	l->ctab = PCIWADDR(t);
-	l->ctabhi = 0;
+	l->ctabhi = PCIWADDR(t) >> 32;
 
 	if(data == 0)
 		return l;
 
 	p = &t->prdt;
 	p->dba = PCIWADDR(data);
-	p->dbahi = 0;
+	p->dbahi = PCIWADDR(data) >> 32;
 	p->count = 1<<31 | (n - 2) | 1;
 
 	return l;
@@ -2100,7 +2101,7 @@ releasedrive(struct kref *kref)
 	printk("release drive called, but we don't do that yet\n");
 }
 
-volatile int staydead = 0;  // TODO(afergs): remove
+volatile int staydead = 1;  // TODO(afergs): remove
 static struct sdev*
 iapnp(void)
 {
