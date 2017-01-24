@@ -75,6 +75,11 @@ static bool handle_ept_fault(struct guest_thread *gth)
 
 	int ret = decode(gth, &gpa, &regx, &regp, &store, &size, &advance);
 
+	if(gpa == 0x467) {
+		advance = 6;
+		vm_tf->tf_rip += advance;
+		return TRUE;
+	}
 	if (ret < 0)
 		return FALSE;
 	if (ret == VM_PAGE_FAULT) {
