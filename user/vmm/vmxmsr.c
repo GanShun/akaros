@@ -241,6 +241,9 @@ static int emsr_apic(struct guest_thread *vm_thread,
 			uint8_t vector = vm_tf->tf_rax & 0xff;
 			uint8_t type = (vm_tf->tf_rax >> 8) & 0x7;
 
+			//fprintf(stderr, "Sending IPI vector %x from %ld to %ld\n", vector,
+			//        vm_tf->tf_guest_pcoreid, destination);
+
 			if (destination >= vm->nr_gpcs && destination != 0xffffffff) {
 				fprintf(stderr, "UNSUPPORTED DESTINATION 0x%02x!\n",
 						destination);

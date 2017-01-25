@@ -176,6 +176,12 @@ void timer_thread(void *arg)
 	fprintf(stderr, "SENDING TIMER\n");
 }
 
+void blah(void)
+{
+	//__asm__("movq $0x0, (%rsp); "
+	__asm__("pushq $0x0; "
+	        "1: jmp 1b; ");
+}
 
 // FIXME.
 volatile int consdata = 0;
@@ -1096,11 +1102,35 @@ int main(int argc, char **argv)
 
 	vm_tf = gth_to_vmtf(vm->gths[0]);
 	vm_tf->tf_cr3 = (uint64_t) p512;
+	//vm_tf->tf_rip = (uint64_t) blah;
 	vm_tf->tf_rip = entry;
 	vm_tf->tf_rsp = stack;
 	vm_tf->tf_rsi = (uint64_t) bp;
 	start_guest_thread(vm->gths[0]);
 
+	sleep(10);
+	for (int i = 1; i < vm->nr_gpcs; i++) {
+		sleep(5);
+	//for (int i = 1; i < 2; i++) {
+	//static char blah[1024];
+	//	uint64_t blah = (uint64_t) mmap((void *)0x800000, PGSIZE, PROT_READ | PROT_WRITE,
+	//	              MAP_POPULATE | MAP_ANONYMOUS, -1, 0);
+
+		//fprintf(stderr, "STACK %p\n", blah+512);
+		vm_tf = gth_to_vmtf(vm->gths[i]);
+		vm_tf->tf_cr3 = (uint64_t) p512;
+		//vm_tf->tf_rip = (uint64_t) blah;
+		vm_tf->tf_rip = 0xffffffff81200110ULL;
+		fprintf(stderr, "entry point! %p\n", vm_tf->tf_rip);
+		vm_tf->tf_cr3 = (uint64_t) 0x1805000;
+		//vm_tf->tf_rip = 0x1200000;
+		//vm_tf->tf_rsp = 0xffff880000000000ULL;
+		vm_tf->tf_rsp = 0xffffffff81810000ULL;
+		//vm_tf->tf_rsp = (uint64_t)blah + 512;
+		//vm_tf->tf_rsp = stack;
+		vm_tf->tf_rsi = (uint64_t) bp;
+		start_guest_thread(vm->gths[i]);
+	}
 	uthread_sleep_forever();
 	return 0;
 }
