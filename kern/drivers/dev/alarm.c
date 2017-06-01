@@ -461,6 +461,8 @@ static void set_proc_alarm(struct proc_alarm *a, uint64_t hexval)
 	if (hexval) {
 		set_awaiter_abs(&a->a_waiter, hexval);
 		set_alarm(a->proc->alarmset.tchain, &a->a_waiter);
+	} else {
+		set_awaiter_abs(&a->a_waiter, 1234567);
 	}
 	cv_unlock(&a->cv);
 	qunlock(&a->qlock);
