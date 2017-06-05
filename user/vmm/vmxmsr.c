@@ -278,6 +278,11 @@ static int apic_timer_write(struct guest_thread *vm_thread,
 	divide_config_reg = ((uint32_t *)gpci->vapic_addr)[0x3E];
 	timer_waiter = (struct alarm_waiter *)gpci->user_data;
 
+	uint64_t gpcoreid = *((uint64_t *)timer_waiter->data);
+
+	if (apic_offset == 0x32) {
+		ros_syscall(SYS_null, 0x1000, gpcoreid, (uint32_t)(vm_tf->tf_rax), 0, 0, 0);
+	}
 	/* This is a precaution on my part, in case the guest tries to look at
 	 * the current count on the lapic. I wanted it to be something other than
 	 * 0 just in case. The current count will never be right short of us
@@ -295,8 +300,13 @@ static int apic_timer_write(struct guest_thread *vm_thread,
 
 	unset_alarm(timer_waiter);
 
+	//if ((initial_count << multiplier) > 2000) {
+		ros_syscall(SYS_null, 0x3000, gpcoreid, initial_count, 0, 0, 0);
+	//}
+
 	if (vector && initial_count) {
 		set_awaiter_rel(timer_waiter, initial_count << multiplier);
+		//set_awaiter_rel(timer_waiter, 1000);
 		set_alarm(timer_waiter);
 	}
 	return 0;

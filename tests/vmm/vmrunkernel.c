@@ -306,12 +306,12 @@ void timer_alarm_handler(struct alarm_waiter *waiter)
 	uint32_t initial_count;
 	uint32_t divide_config_reg;
 	uint32_t multiplier;
-	uint32_t timer_mode;
+	//uint32_t timer_mode;
 	uint64_t gpcoreid = *((uint64_t *)waiter->data);
 	struct vmm_gpcore_init *gpci = &gpcis[gpcoreid];
 
 	vector = ((uint32_t *)gpci->vapic_addr)[0x32] & 0xff;
-	timer_mode = (((uint32_t *)gpci->vapic_addr)[0x32] >> 17) & 0x03;
+	//timer_mode = (((uint32_t *)gpci->vapic_addr)[0x32] >> 17) & 0x03;
 	initial_count = ((uint32_t *)gpci->vapic_addr)[0x38];
 	divide_config_reg = ((uint32_t *)gpci->vapic_addr)[0x3E];
 
@@ -321,9 +321,14 @@ void timer_alarm_handler(struct alarm_waiter *waiter)
 	              (divide_config_reg & 0x03)) + 1;
 	multiplier &= 0x07;
 
-	if (vector && initial_count && timer_mode == 0x01) {
+	//if ((initial_count << multiplier) > 2000) {
+		ros_syscall(SYS_null, 0x2000, gpcoreid, initial_count, 0, 0, 0);
+	//}
+	if (vector && initial_count) {
+	//if (vector && initial_count && timer_mode == 0x01) {
 		/* This is periodic, we reset the alarm */
-		set_awaiter_rel(waiter, initial_count << multiplier);
+		set_awaiter_inc(waiter, initial_count << multiplier);
+		//set_awaiter_rel(waiter, 1000);
 		__set_alarm(waiter);
 	}
 
