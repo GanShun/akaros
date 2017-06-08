@@ -59,7 +59,7 @@ NO_PRINT_DIRECTORY ?= --no-print-directory
 export_parent_env := $(shell export | sed 's/$$/;/')
 
 # Save the ability to clear the current environment for future use
-clear_current_env := for c in $$(env | cut -d '=' -f 1); do unset $$c; done;
+clear_current_env := for c in $$(env | sed -r -n 's/([^=]*)=.*/\1/p'); do unset $$c; done;
 
 define export_user_variables
 	CROSS_COMPILE="$(CROSS_COMPILE)"\
@@ -209,7 +209,7 @@ export CONFIG_SHELL HOSTCC HOSTCXX HOSTCFLAGS HOSTCXXFLAGS
 #         cmd_cc_o_c       = $(CC) $(c_flags) -c -o $@ $<
 #
 # If $(quiet) is empty, the whole command will be printed.
-# If it is set to "quiet_", only the short version will be printed. 
+# If it is set to "quiet_", only the short version will be printed.
 # If it is set to "silent_", nothing will be printed at all, since
 # the variable $(silent_cmd_cc_o_c) doesn't exist.
 #
@@ -333,10 +333,10 @@ endif # $(dot-config)
 AKAROSINCLUDE   := -I$(srctree)/kern/include/
 
 # CROSS_COMPILE is defined per-arch.  Each arch can set other makeflags, kbuild
-# directories, etc. 
+# directories, etc.
 -include $(srctree)/kern/arch/$(ARCH)/Makefile
 
-CC	    := $(CROSS_COMPILE)gcc 
+CC	    := $(CROSS_COMPILE)gcc
 CPP	    := $(CROSS_COMPILE)g++
 AS	    := $(CROSS_COMPILE)as
 AR	    := $(CROSS_COMPILE)ar
@@ -364,7 +364,7 @@ CFLAGS_KERNEL += -std=gnu99 -fgnu89-inline
 CFLAGS_KERNEL += -fno-strict-aliasing -fno-omit-frame-pointer
 CFLAGS_KERNEL += -fno-stack-protector
 CFLAGS_KERNEL += -Wall -Wno-format -Wno-unused -Werror -Wreturn-type
-CFLAGS_KERNEL += -DROS_KERNEL 
+CFLAGS_KERNEL += -DROS_KERNEL
 CFLAGS_KERNEL += -include include/generated/autoconf.h -include include/common.h
 CFLAGS_KERNEL += -fplan9-extensions
 ifeq ($(CONFIG_64BIT),y)
@@ -433,7 +433,7 @@ $(srctree)/Makelocal: ;
 # Akaros Kernel Build
 # =========================================================================
 # Add top level directories, either to an existing entry (core-y) or to its
-# own. 
+# own.
 #
 # From these, we determine deps and dirs.  We recursively make through the
 # dirs, generating built-in.o at each step, which are the deps from which we
@@ -540,7 +540,7 @@ $(ext2_bdev_obj): $(ext2-bdev)
 # Not the worlds most elegant link command.  link-kernel takes the obj output
 # name, then the linker script, then everything else you'd dump on the ld
 # command line, including linker options and objects to link together.
-# 
+#
 # After the script is done, we run the arch-specific command directly.
 quiet_cmd_link-akaros = LINK    $@
       cmd_link-akaros = $(CONFIG_SHELL) scripts/link-kernel.sh $@ \
@@ -662,7 +662,7 @@ fill-kfs: $(OBJDIR)/.dont-force-fill-kfs user tests
 
 # Use doxygen to make documentation for ROS (Untested since 2010 or so)
 doxygen-dir := $(CUR_DIR)/Documentation/doxygen
-docs: 
+docs:
 	@echo "  Making doxygen"
 	@doxygen-dir=$(doxygen-dir) doxygen $(doxygen-dir)/rosdoc.cfg
 	@if [ ! -d $(doxygen-dir)/rosdoc/html/img ]; \
