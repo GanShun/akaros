@@ -304,6 +304,7 @@ static bool handle_mwait(struct guest_thread *gth)
 {
 	struct vm_trapframe *vm_tf = gth_to_vmtf(gth);
 
+	panic("SHOULDN'T BE MWAITING");
 	/* TODO: we need to handle the actual monitor part of mwait.  This just
 	 * implements the power management / halting.  Likewise, it's possible IRQs
 	 * are disabled (as with halt). */

@@ -286,6 +286,26 @@ void alloc_intr_pages(void)
 	}
 }
 
+/* This rams all cores with a valid timer vector and initial count
+ * with a timer interrupt. Used only for debugging/as a temporary workaround */
+void * inject_timer_spurious(void* args)
+{
+	struct vmm_gpcore_init *curgpci;
+	uint32_t initial_count;
+	uint8_t vector;
+
+	//for (int i = 0; i < vm->nr_gpcs; i++) {
+	for (int i = 0; i < 2; i++) {
+		curgpci = &gpcis[i];
+		vector = ((uint32_t *)curgpci->vapic_addr)[0x32] & 0xff;
+		initial_count = ((uint32_t *)curgpci->vapic_addr)[0x38];
+		if (initial_count && vector) {
+			vmm_interrupt_guest(vm, i, vector);
+		}
+	}
+	return 0;
+}
+
 /* This injects the timer interrupt to the guest. */
 void *inject_timer(void *args)
 {
@@ -335,6 +355,7 @@ void timer_alarm_handler(struct alarm_waiter *waiter)
 	/* We spin up a task to inject the timer because vmm_interrupt guest
 	 * may block and we can't do that from vcore context. */
 	vmm_run_task(vm, inject_timer, (void *)gpcoreid);
+	//vmm_run_task(vm, inject_timer_spurious, (void *)gpcoreid);
 }
 
 /* This sets up the structs for each of the guest pcore's timers, but

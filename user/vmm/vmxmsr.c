@@ -240,6 +240,8 @@ static int apic_icr_write(struct guest_thread *vm_thread,
 				vmm_interrupt_guest(vm, i, vector);
 		} else {
 			/* Send individual IPI */
+			if (0 && vector == 0xfb)
+				fprintf(stderr, "\nsending IPI %x, from %d to %ld\n", vector, vm_tf->tf_guest_pcoreid, destination);
 			vmm_interrupt_guest(vm, destination, vector);
 		}
 		break;
